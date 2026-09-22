@@ -1,0 +1,28 @@
+name = "readlex-api"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Local dev:   npm run db:migrate:local && npm run dev        -> http://localhost:8787
+# Production:  wrangler d1 create readlex  (paste database_id below)
+#              wrangler secret put ENCRYPTION_KEY   (random, encrypts users' Gemini keys)
+#              (optional) SIGNUP_MODE = "invite" + wrangler secret put INVITE_CODE
+#              npm run db:migrate && npm run deploy
+
+[[d1_databases]]
+binding = "DB"
+database_name = "readlex"
+database_id = "738ebe83-3fa8-4417-b797-a48b15b25f35"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+ALLOWED_ORIGINS = "*"
+# WEB_URL = "https://<user>.github.io/<repo>"     # used in password-reset links
+# MAIL_FROM = "ReadLex <no-reply@your-domain>"    # plus secret RESEND_API_KEY to enable "quên mật khẩu"
+SIGNUP_MODE = "open"        # open | invite (needs INVITE_CODE secret) | closed
+
+[observability]
+enabled = true

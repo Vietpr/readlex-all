@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>ReadLex · Kho từ vựng</title>
+  <link rel="stylesheet" href="../shared/common.css">
+  <link rel="stylesheet" href="vocabulary.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">ReadLex</div>
+    <nav class="row">
+      <span class="muted">Kho từ vựng</span>
+      <a href="../options/options.html">Cài đặt</a>
+    </nav>
+    <div class="grow"></div>
+    <div class="row">
+      <button class="btn small" id="btn-run-ai" title="Gọi Gemini cho các từ đang chờ">Chạy AI <span id="pending-count"></span></button>
+      <button class="btn small" id="btn-export">Export JSON</button>
+      <button class="btn small" id="btn-export-anki">Export Anki (TSV)</button>
+      <button class="btn small" id="btn-import">Import JSON</button>
+      <input type="file" id="file-import" accept="application/json,.json" class="hidden">
+    </div>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="suggest card hidden" id="suggest">
+    <div class="row"><b>Từ bạn tra nhiều nhưng chưa lưu</b><span class="grow"></span><span class="muted small">bấm để lưu</span></div>
+    <div class="chips" id="suggest-chips"></div>
+  </section>
+
+  <main class="layout">
+    <aside class="side">
+      <div class="filters card">
+        <input class="input" id="q" placeholder="Tìm từ, nghĩa…" autocomplete="off">
+        <div class="row wrap">
+          <select class="input" id="f-lang">
+            <option value="">Anh + Nhật</option>
+            <option value="en">Tiếng Anh</option>
+            <option value="ja">Tiếng Nhật</option>
+          </select>
+          <select class="input" id="f-status">
+            <option value="">Mọi trạng thái</option>
+            <option value="new">Mới</option>
+            <option value="learning">Đang học</option>
+            <option value="known">Đã biết</option>
+            <option value="ignored">Bỏ qua</option>
+          </select>
+          <select class="input" id="f-enrich">
+            <option value="">AI: tất cả</option>
+            <option value="done">AI xong</option>
+            <option value="pending">Chờ AI</option>
+            <option value="failed">AI lỗi</option>
+          </select>
+          <select class="input" id="f-sort">
+            <option value="newest">Mới nhất</option>
+            <option value="oldest">Cũ nhất</option>
+            <option value="alpha">A → Z</option>
+            <option value="exposures">Gặp nhiều nhất</option>
+            <option value="priority">AI ưu tiên</option>
+          </select>
+        </div>
+      </div>
+      <div class="muted small" id="count"></div>
+      <ul class="list" id="list"></ul>
+    </aside>
+
+    <section class="detail card" id="detail">
+      <div class="placeholder muted">Chọn một từ ở danh sách bên trái.</div>
+    </section>
+  </main>
+  <script type="module" src="vocabulary.js"></script>
+</body>
+</html>

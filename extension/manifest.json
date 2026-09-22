@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "ReadLex",
+  "version": "0.1.0",
+  "description": "Tra nhanh từ tiếng Anh khi đọc, lưu kèm ngữ cảnh, AI giải thích để học lại sau.",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "unlimitedStorage", "contextMenus", "alarms", "activeTab"],
+  "host_permissions": [
+    "https://translate.googleapis.com/*",
+    "https://api.dictionaryapi.dev/*",
+    "https://api.mymemory.translated.net/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*", "file:///*"],
+      "js": ["content/locator.js", "content/ui.js", "content/main.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "ReadLex",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "toggle-hover": {
+      "suggested_key": { "default": "Alt+Shift+H" },
+      "description": "Bật / tắt dịch khi rê chuột"
+    }
+  }
+}

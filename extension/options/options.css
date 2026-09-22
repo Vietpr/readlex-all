@@ -1,0 +1,17 @@
+.wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
+h1 { font-size: 22px; }
+h2 { font-size: 15px; margin-bottom: 10px; }
+.card { padding: 16px 18px; }
+.field { margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+.field > label { font-weight: 600; font-size: 13px; }
+.options { display: flex; flex-direction: column; gap: 6px; }
+.options label, .check { display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 4px 0; }
+.narrow { max-width: 260px; }
+.small { font-size: 12.5px; }
+kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 12px; background: var(--bg); }
+code { background: var(--bg); padding: 0 4px; border-radius: 4px; }
+details summary { cursor: pointer; list-style: none; }
+details summary h2 { display: inline; }
+details[open] summary { margin-bottom: 8px; }
+.status { text-align: center; }
+input[type="range"] { width: 100%; max-width: 360px; }

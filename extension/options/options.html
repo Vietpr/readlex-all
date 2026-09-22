@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>ReadLex · Cài đặt</title>
+  <link rel="stylesheet" href="../shared/common.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="row">
+      <h1>Cài đặt ReadLex</h1>
+      <span class="grow"></span>
+      <a href="../vocabulary/vocabulary.html">Kho từ vựng →</a>
+    </header>
+
+    <section class="card">
+      <h2>Rê chuột</h2>
+      <div class="field">
+        <label>Cách kích hoạt</label>
+        <div class="options">
+          <label><input type="radio" name="hoverMode" value="hover"> Rê chuột lên từ (sau một khoảng chờ)</label>
+          <label><input type="radio" name="hoverMode" value="alt"> Giữ <kbd>Alt</kbd> + rê chuột</label>
+          <label><input type="radio" name="hoverMode" value="ctrl"> Giữ <kbd>Ctrl</kbd> + rê chuột</label>
+          <label><input type="radio" name="hoverMode" value="off"> Tắt (chỉ dùng bôi đen / chuột phải)</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Dịch gì khi rê chuột</label>
+        <div class="options">
+          <label><input type="radio" name="hoverTarget" value="sentence"> Cả câu dưới con trỏ (như tudienjp)</label>
+          <label><input type="radio" name="hoverTarget" value="both"> Câu + nghĩa của từ dưới con trỏ</label>
+          <label><input type="radio" name="hoverTarget" value="word"> Chỉ từ dưới con trỏ (từ điển offline)</label>
+        </div>
+        <p class="muted small">Giữ <kbd>Shift</kbd> trong lúc rê chuột để tạm đổi giữa câu và từ. Bôi đen hoặc nháy đúp luôn tra từ.</p>
+      </div>
+      <div class="field">
+        <label for="hoverDelay">Thời gian chờ trước khi hiện: <b id="hoverDelayValue">300</b> ms</label>
+        <input type="range" id="hoverDelay" min="150" max="1500" step="50">
+      </div>
+      <label class="check"><input type="checkbox" id="skipCommonWords"> Bỏ qua từ quá thông dụng (the, and, people…) khi rê chuột</label>
+      <p class="muted small">Phím tắt bật / tắt nhanh: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> (đổi tại chrome://extensions/shortcuts).</p>
+    </section>
+
+    <section class="card">
+      <h2>Bôi đen</h2>
+      <div class="options">
+        <label><input type="radio" name="selectionMode" value="auto"> Dịch ngay khi bôi đen</label>
+        <label><input type="radio" name="selectionMode" value="button"> Hiện nút nhỏ, bấm mới dịch</label>
+        <label><input type="radio" name="selectionMode" value="off"> Tắt</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Popup</h2>
+      <label class="check"><input type="checkbox" id="showIpa"> Hiện phiên âm IPA</label>
+      <label class="check"><input type="checkbox" id="showDefinition"> Hiện định nghĩa tiếng Anh ngắn</label>
+      <div class="field">
+        <label for="popupTheme">Giao diện popup</label>
+        <select class="input narrow" id="popupTheme">
+          <option value="auto">Theo hệ thống</option>
+          <option value="light">Sáng</option>
+          <option value="dark">Tối</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="targetLang">Ngôn ngữ dịch sang (mã ISO)</label>
+        <input class="input narrow" id="targetLang" placeholder="vi">
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>AI giải thích (Gemini)</h2>
+      <p class="muted small">Chỉ chạy khi bạn lưu từ, không chạy khi rê chuột. Lấy key miễn phí tại
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.</p>
+      <div class="field">
+        <label for="geminiApiKey">API key</label>
+        <div class="row">
+          <input class="input" id="geminiApiKey" type="password" placeholder="AIza…" autocomplete="off">
+          <button class="btn" id="btn-show-key" type="button">Hiện</button>
+          <button class="btn" id="btn-test-key" type="button">Kiểm tra</button>
+        </div>
+        <div class="muted small" id="test-result"></div>
+      </div>
+      <div class="field">
+        <label for="geminiModel">Model</label>
+        <input class="input narrow" id="geminiModel" list="models" placeholder="gemini-2.5-flash">
+        <datalist id="models">
+          <option value="gemini-2.5-flash"></option>
+          <option value="gemini-2.5-flash-lite"></option>
+          <option value="gemini-2.5-pro"></option>
+          <option value="gemini-2.0-flash"></option>
+        </datalist>
+      </div>
+      <label class="check"><input type="checkbox" id="autoEnrich"> Tự động chạy AI cho từ mới lưu</label>
+    </section>
+
+    <section class="card">
+      <h2>Trang web bị tắt</h2>
+      <p class="muted small">Mỗi dòng một hostname, ví dụ <code>mail.google.com</code>. Bạn cũng có thể bật / tắt từ popup của extension.</p>
+      <textarea class="input" id="disabledSites" rows="4"></textarea>
+    </section>
+
+    <section class="card" id="backend-section">
+      <h2>Tài khoản ReadLex (đồng bộ với web)</h2>
+      <p class="muted small">Đăng nhập để từ bạn lưu được gửi lên server, AI giải nghĩa bằng Gemini key của bạn, và ôn tập trên web / điện thoại.</p>
+      <div id="backend-logged-out">
+        <div class="field" id="backend-url-field"><label for="backendUrl">Địa chỉ server</label><input class="input" id="backendUrl" placeholder="https://readlex-api.xxx.workers.dev"><span class="muted small">Thử local: http://localhost:8787</span></div>
+        <div class="field"><label for="backendEmail">Email</label><input class="input narrow" id="backendEmail" type="email" autocomplete="email"></div>
+        <div class="field"><label for="backendPassword">Mật khẩu</label><input class="input narrow" id="backendPassword" type="password" autocomplete="current-password"></div>
+        <div class="field hidden" id="invite-field"><label for="backendInvite">Mã mời</label><input class="input narrow" id="backendInvite" placeholder="Hỏi người quản trị server"></div>
+        <div class="row">
+          <button class="btn primary" id="btn-backend-login" type="button">Đăng nhập</button>
+          <button class="btn" id="btn-backend-register" type="button">Đăng ký tài khoản mới</button>
+        </div>
+      </div>
+      <div id="backend-logged-in" class="hidden">
+        <p>Đang đăng nhập: <b id="backend-email-label"></b> <button class="btn small" id="btn-backend-logout" type="button">Đăng xuất</button></p>
+        <div class="field">
+          <label for="geminiServerKey">Gemini key của bạn (lưu mã hóa trên server) <span class="badge" id="gemini-server-status"></span></label>
+          <div class="row"><input class="input" id="geminiServerKey" type="password" placeholder="AIza…" autocomplete="off"><button class="btn" id="btn-gemini-server-save" type="button">Kiểm tra & lưu</button></div>
+          <span class="muted small">Lấy miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. Mỗi người dùng key riêng của mình.</span>
+        </div>
+        <label class="check"><input type="checkbox" id="serverEnrich"> AI chạy trên server (tắt nếu muốn dùng key cục bộ ở mục trên)</label>
+        <div class="row">
+          <button class="btn" id="btn-backend-import" type="button">Đẩy toàn bộ dữ liệu lên server</button>
+          <button class="btn" id="btn-backend-flush" type="button">Đồng bộ ngay</button>
+        </div>
+      </div>
+      <div class="muted small" id="backend-status"></div>
+    </section>
+
+    <details class="card">
+      <summary><h2>Nâng cao</h2></summary>
+      <div class="row">
+        <button class="btn" id="btn-clear-cache" type="button">Xóa cache dịch</button>
+        <button class="btn danger" id="btn-clear-all" type="button">Xóa toàn bộ dữ liệu</button>
+      </div>
+    </details>
+
+    <p class="muted small status" id="status">Thay đổi được lưu tự động.</p>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "readlex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension: tra từ tiếng Anh khi đọc, lưu kèm ngữ cảnh, AI giải thích để học lại.",
+  "type": "module",
+  "scripts": {
+    "test": "node scripts/test-lemmatizer.mjs && node scripts/test-offline-dict.mjs && node scripts/test-ja-deinflect.mjs && node scripts/test-ja-dict.mjs && node scripts/test-study-logic.mjs",
+    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:live": "node scripts/smoke-test.mjs --live",
+    "icons": "python3 scripts/make-icons.py",
+    "dict": "python3 scripts/build-dict.py",
+    "dict:ja": "python3 scripts/build-dict-ja.py",
+    "test:backend": "cd backend && npm test",
+    "smoke:web": "cd web && npm run build && cd .. && node scripts/web-smoke.mjs",
+    "test:study": "node scripts/test-study-logic.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.0.0"
+  }
+}

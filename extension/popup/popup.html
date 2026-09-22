@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>ReadLex</title>
+  <link rel="stylesheet" href="../shared/common.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">ReadLex</div>
+    <div class="grow"></div>
+    <button class="btn small" id="btn-vocab" title="Mở kho từ vựng">Kho từ vựng</button>
+    <button class="btn small" id="btn-options" title="Cài đặt">⚙</button>
+  </header>
+
+  <label class="site card" id="site-row">
+    <input type="checkbox" id="site-toggle">
+    <span>Bật trên <b id="site-host">trang này</b></span>
+    <span class="grow"></span>
+    <span class="muted" id="hover-mode"></span>
+  </label>
+
+  <div class="muted small sync hidden" id="sync-line"></div>
+
+  <div class="warn card hidden" id="no-key">
+    Chưa có Gemini API key nên từ đã lưu chưa được AI giải thích.
+    <a href="#" id="link-key">Cấu hình ngay</a>
+  </div>
+
+  <section class="stats">
+    <div class="stat card"><div class="num" id="stat-today">0</div><div class="lbl">hôm nay</div></div>
+    <div class="stat card"><div class="num" id="stat-week">0</div><div class="lbl">7 ngày</div></div>
+    <div class="stat card"><div class="num" id="stat-total">0</div><div class="lbl">tổng</div></div>
+    <div class="stat card pending" id="stat-pending-card" title="Số từ đang chờ AI giải thích">
+      <div class="num" id="stat-pending">0</div><div class="lbl">chờ AI</div>
+    </div>
+  </section>
+
+  <div class="search">
+    <input class="input" id="search" placeholder="Tìm trong kho từ vựng…" autocomplete="off">
+  </div>
+
+  <div class="list-head row">
+    <span id="list-title" class="muted">Lưu hôm nay</span>
+    <span class="grow"></span>
+    <button class="btn small hidden" id="btn-run-ai">Chạy AI ngay</button>
+  </div>
+  <ul class="list card" id="list"></ul>
+  <div class="empty muted" id="empty">Chưa có từ nào. Bôi đen hoặc rê chuột vào từ trên trang, rồi bấm ☆ Lưu.</div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
