@@ -19,6 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
       - run: npm ci
         working-directory: web
       - run: npm run build
@@ -26,7 +28,7 @@ jobs:
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
           VITE_API_URL: ${{ vars.VITE_API_URL || 'https://readlex-api.phamvanviet12gbm.workers.dev' }}
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with: { path: web/dist }
   deploy:
     needs: build
