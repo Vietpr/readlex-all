@@ -6,6 +6,9 @@ import { Icon } from '../components/Icon';
 import { SpeakButton } from '../components/CardView';
 import { RATING_LABEL, STATE_LABEL, type CardContent, type CustomSet, type Exposure, type Rating, type Vocabulary } from '../types';
 
+// Where a sentence came from when it has no link; words typed in by hand are stored with the page title 'Added by hand' (see api.addWord).
+const sourceLabel = (pageTitle: string) => pageTitle || 'Unknown source';
+
 function highlight(sentence: string, surface: string) {
   const idx = surface ? sentence.toLowerCase().indexOf(surface.toLowerCase()) : -1;
   if (idx < 0) return <>{sentence}</>;
@@ -101,7 +104,7 @@ export function VocabDetail({ id }: { id: string }) {
         <div key={x.id} className="exposure">
           <div className="sentence-row"><span>{highlight(x.sentence || '(no sentence saved)', x.surface)}</span>{x.sentence && <SpeakButton label="Play sentence" onClick={() => pronounceSentence(x.sentence, v.language)} />}</div>
           {e?.sentenceVi && x.id === exposures[exposures.length - 1].id && <div className="muted small">{e.sentenceVi}</div>}
-          <div className="meta">{x.url ? <a href={x.url} target="_blank" rel="noopener">{x.pageTitle || hostOf(x.url)}</a> : <span>{x.pageTitle || 'Unknown source'}</span>}<span>{formatDate(x.encounteredAt)}</span>
+          <div className="meta">{x.url ? <a href={x.url} target="_blank" rel="noopener">{x.pageTitle || hostOf(x.url)}</a> : <span>{sourceLabel(x.pageTitle)}</span>}<span>{formatDate(x.encounteredAt)}</span>
             <button className="link-btn" onClick={async () => { if (!confirm('Remove this sentence?')) return; try { await api.deleteExposure(x.id); await load(); } catch (err) { setError((err as Error).message); } }}>Remove</button></div>
         </div>
       ))}

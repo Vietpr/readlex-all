@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { auth, api, getConfig, setConfig, queuedReviewCount, flushReviewQueue, relativeTime, timeZoneLabel, type AuthUser } from '../api';
+import { auth, getConfig, setConfig, queuedReviewCount, flushReviewQueue, type AuthUser } from '../api';
 import { speak, speechAvailable, voicesFor } from '../speech';
 import { Icon } from '../components/Icon';
 
@@ -16,7 +16,6 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 export function Settings({ onConfigured }: { onConfigured: () => void }) {
   const [cfg, setCfg] = useState(getConfig());
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [extension, setExtension] = useState<{ last: number } | null | undefined>(undefined);
   const [status, setStatus] = useState<{ where: string; text: string; ok: boolean } | null>(null);
   const [keyOpen, setKeyOpen] = useState(false);
   const [geminiKey, setGeminiKey] = useState('');
@@ -31,7 +30,6 @@ export function Settings({ onConfigured }: { onConfigured: () => void }) {
   useEffect(() => {
     auth.me().then((r) => { setUser(r.user); setModel(r.user.geminiModel || 'gemini-2.5-flash'); }).catch(() => {});
     auth.health(cfg.apiUrl).then((r) => setDemoAi(!!r.mock)).catch(() => {});
-    api.sessions().then((r) => { const ext = r.sessions.filter((s) => s.kind === 'extension').sort((a, b) => b.last_used_at - a.last_used_at)[0]; setExtension(ext ? { last: ext.last_used_at } : null); }).catch(() => setExtension(null));
     const load = () => setVoices(voicesFor('en'));
     load();
     if (speechAvailable()) window.speechSynthesis.addEventListener('voiceschanged', load);
@@ -98,7 +96,9 @@ export function Settings({ onConfigured }: { onConfigured: () => void }) {
       <Section title="Learning">
         <Row label="English" hint="Show English words in reviews"><Toggle label="English" checked={langs.en} onChange={(v) => setLang('en', v)} /></Row>
         <Row label="Japanese" hint="Show Japanese words in reviews"><Toggle label="Japanese" checked={langs.ja} onChange={(v) => setLang('ja', v)} /></Row>
-        <Row label="Review algorithm · FSRS" hint="Automatically schedules each word based on how well you remember it. Save as many words as you like; there is no daily limit." />
+        <Row label="Flashcard front" hint="What a flashcard shows before you flip it">
+          <select className="input auto" aria-label="Flashcard front" value={cfg.flashDirection} onChange={(e) => save({ flashDirection: e.target.value === 'meaning' ? 'meaning' : 'word' })}><option value="word">Word</option><option value="meaning">Meaning</option></select>
+        </Row>
       </Section>
 
       <Section title="Pronunciation">
@@ -122,20 +122,6 @@ export function Settings({ onConfigured }: { onConfigured: () => void }) {
         <Row label="Sync status" hint={queued ? `${queued} ${queued === 1 ? 'review is' : 'reviews are'} waiting to be sent` : 'Everything is up to date'}>
           {queued ? <button className="btn small" onClick={async () => { await flushReviewQueue(); setQueued(queuedReviewCount()); }}>Send now</button> : <span className="badge ok">✓</span>}
         </Row>
-        <Row label="Browser extension" hint={extension === undefined ? '' : extension ? `Connected · last active ${relativeTime(extension.last)}` : 'Not connected yet'}>
-          {extension ? <span className="badge ok">Connected</span> : null}
-        </Row>
-        <details><summary className="muted small">Set up the extension</summary>
-          <ol className="muted small steps"><li>Install the ReadLex extension in Chrome on the computer where you read.</li><li>Open its Settings and sign in with <b>{user?.email || 'this account'}</b>.</li><li>Hover or select words while reading and press Save. They appear here within seconds.</li></ol>
-        </details>
-      </Section>
-
-      <Section title="App">
-        <Row label="Time zone" hint={`Automatic · ${timeZoneLabel()}`} />
-        <Row label="Install ReadLex" hint="Add ReadLex to your Home Screen to open it like an app" />
-        <details><summary className="muted small">How to install</summary>
-          <ul className="muted small steps"><li><b>iPhone / iPad:</b> Safari → Share → Add to Home Screen.</li><li><b>Android:</b> Chrome → ⋮ menu → Install app.</li><li><b>Desktop Chrome:</b> the install icon at the right of the address bar.</li></ul>
-        </details>
       </Section>
 
       <Section title="Danger zone" danger>

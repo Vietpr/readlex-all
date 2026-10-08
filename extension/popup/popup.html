@@ -1,53 +1,71 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ReadLex</title>
   <link rel="stylesheet" href="../shared/common.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <header class="top">
-    <div class="brand">ReadLex</div>
-    <div class="grow"></div>
-    <button class="btn small" id="btn-vocab" title="Mở kho từ vựng">Kho từ vựng</button>
-    <button class="btn small" id="btn-options" title="Cài đặt">⚙</button>
+    <span class="wordmark">Read<span>Lex</span></span>
+    <button type="button" class="icon-btn small" id="btn-options" aria-label="Settings" title="Settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9"></path><path d="M19 6h1"></path><path d="M4 12h3"></path><path d="M13 12h7"></path><path d="M4 18h10"></path><circle cx="16" cy="6" r="2.5"></circle><circle cx="10" cy="12" r="2.5"></circle><circle cx="17" cy="18" r="2.5"></circle></svg>
+    </button>
   </header>
 
-  <label class="site card" id="site-row">
-    <input type="checkbox" id="site-toggle">
-    <span>Bật trên <b id="site-host">trang này</b></span>
-    <span class="grow"></span>
-    <span class="muted" id="hover-mode"></span>
-  </label>
-
-  <div class="muted small sync hidden" id="sync-line"></div>
-
-  <div class="warn card hidden" id="no-key">
-    Chưa có Gemini API key nên từ đã lưu chưa được AI giải thích.
-    <a href="#" id="link-key">Cấu hình ngay</a>
-  </div>
-
-  <section class="stats">
-    <div class="stat card"><div class="num" id="stat-today">0</div><div class="lbl">hôm nay</div></div>
-    <div class="stat card"><div class="num" id="stat-week">0</div><div class="lbl">7 ngày</div></div>
-    <div class="stat card"><div class="num" id="stat-total">0</div><div class="lbl">tổng</div></div>
-    <div class="stat card pending" id="stat-pending-card" title="Số từ đang chờ AI giải thích">
-      <div class="num" id="stat-pending">0</div><div class="lbl">chờ AI</div>
+  <section class="card site" aria-label="Current site">
+    <div class="site-main" id="site-row">
+      <div class="two-line">
+        <span class="t" id="site-label">Look up words on this site</span>
+        <span class="d ellipsis" id="site-host">this site</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" role="switch" id="site-toggle" aria-labelledby="site-label" aria-describedby="site-host">
+        <span class="switch-track" aria-hidden="true"></span>
+      </label>
+    </div>
+    <div class="site-mode">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l14 8-6 2-2 6z"></path></svg>
+      <span class="grow" id="hover-mode"></span>
+      <a href="../options/options.html#re-chuot" id="link-mode" aria-label="Change what hovering does">Change</a>
     </div>
   </section>
 
-  <div class="search">
-    <input class="input" id="search" placeholder="Tìm trong kho từ vựng…" autocomplete="off">
+  <div class="notice warn hidden" id="no-key">
+    No Gemini key yet, so saved words are not explained by AI.
+    <a href="../options/options.html#ai" id="link-key">Add a key</a>
   </div>
 
-  <div class="list-head row">
-    <span id="list-title" class="muted">Lưu hôm nay</span>
-    <span class="grow"></span>
-    <button class="btn small hidden" id="btn-run-ai">Chạy AI ngay</button>
-  </div>
-  <ul class="list card" id="list"></ul>
-  <div class="empty muted" id="empty">Chưa có từ nào. Bôi đen hoặc rê chuột vào từ trên trang, rồi bấm ☆ Lưu.</div>
+  <section class="card today" aria-label="Saved words">
+    <div class="two-line">
+      <span class="t" id="stat-line">You saved <span id="stat-today">0</span> words today</span>
+      <span class="d"><span id="stat-week">0</span> in the last 7 days · <span id="stat-total">0</span> in total</span>
+    </div>
+    <div class="pending-row hidden" id="stat-pending-card">
+      <svg class="pending-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path><path d="M19 16v4"></path><path d="M17 18h4"></path></svg>
+      <span class="grow"><span id="stat-pending">0</span> <span id="stat-pending-label">words waiting for an AI explanation</span></span>
+      <button type="button" class="link-btn hidden" id="btn-run-ai">Run now</button>
+    </div>
+  </section>
+
+  <label class="search-field search">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+    <input type="search" id="search" aria-label="Search saved words" placeholder="Search saved words" autocomplete="off">
+  </label>
+
+  <section class="recent" aria-labelledby="list-title">
+    <h2 id="list-title">Saved today</h2>
+    <ul class="list card" id="list"></ul>
+    <p class="empty muted" id="empty">No words yet. Hover over or select a word on a page, then press “Save word”.</p>
+  </section>
+
+  <button type="button" class="btn primary block open-vocab" id="btn-vocab">Open vocabulary
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>
+  </button>
+
+  <p class="sync muted hidden" id="sync-line"></p>
 
   <script type="module" src="popup.js"></script>
 </body>

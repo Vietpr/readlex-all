@@ -7,7 +7,7 @@ export interface Session { cards: CardContent[]; title: string; mode: StudyMode;
 
 const KEY = 'readlex.session';
 const PROGRESS_KEY = 'readlex.session.progress';
-const VERSION = 1;          // bump when the session or progress blobs change shape
+const VERSION = 2;          // bump when the session or progress blobs change shape (2: Learn phases)
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 let current: Session | null = null;

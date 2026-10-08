@@ -41,14 +41,14 @@ export async function updateBadge() {
   start.setHours(0, 0, 0, 0);
   const rows = await db.getAll('vocabulary');
   const today = rows.filter((v) => v.createdAt >= start.getTime()).length;
-  await chrome.action.setBadgeBackgroundColor({ color: '#4f46e5' });
+  await chrome.action.setBadgeBackgroundColor({ color: '#17202b' });
   await chrome.action.setBadgeText({ text: today ? String(today) : '' });
 }
 
 export async function saveVocabulary(payload) {
   const surface = normalizeSurface(payload.surface);
-  if (!surface) throw new Error('Không có từ để lưu');
-  if (surface.length > 200) throw new Error('Đoạn chọn quá dài để lưu làm từ vựng');
+  if (!surface) throw new Error('There is no word to save');
+  if (surface.length > 200) throw new Error('The selection is too long to save as vocabulary');
 
   const now = Date.now();
   const language = payload.language === 'ja' ? 'ja' : 'en';
@@ -148,7 +148,7 @@ export async function deleteExposure(id) {
 
 export async function updateVocabulary(id, patch) {
   const vocab = await db.get('vocabulary', id);
-  if (!vocab) throw new Error('Không tìm thấy từ');
+  if (!vocab) throw new Error('Word not found');
   const allowed = ['status', 'lemma', 'surface', 'quickMeaning', 'enrichmentStatus', 'note'];
   for (const k of allowed) if (k in patch) vocab[k] = patch[k];
   vocab.updatedAt = Date.now();
@@ -211,7 +211,7 @@ export async function listVocabulary({ query = '', status = '', enrichment = '',
 
 export async function getVocabularyDetail(id) {
   const vocab = await db.get('vocabulary', id);
-  if (!vocab) throw new Error('Không tìm thấy từ');
+  if (!vocab) throw new Error('Word not found');
   const exposures = (await db.getAllByIndex('exposures', 'vocabularyId', id)).sort((a, b) => b.encounteredAt - a.encounteredAt);
   const lookups = (await db.get('lookups', vocab.lemma)) || null;
   return { vocabulary: vocab, exposures, lookups };
@@ -292,7 +292,7 @@ export async function exportAll() {
 }
 
 export async function importAll(data) {
-  if (!data || data.app !== 'readlex' || !Array.isArray(data.vocabulary)) throw new Error('File không đúng định dạng ReadLex');
+  if (!data || data.app !== 'readlex' || !Array.isArray(data.vocabulary)) throw new Error('This file is not a ReadLex backup');
   const existing = await db.getAll('vocabulary');
   const byLemma = new Map(existing.map((v) => [v.lemma, v]));
   const idMap = new Map();
@@ -335,7 +335,7 @@ async function backend() {
 
 async function backendFetch(path, { method = 'GET', body = null, timeout = 15000, url = null, token = null } = {}) {
   const be = url ? { url: url.replace(/\/$/, ''), token: token || '' } : await backend();
-  if (!be) throw new Error('Chưa đăng nhập server');
+  if (!be) throw new Error('Not signed in to the server');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
@@ -350,7 +350,7 @@ async function backendFetch(path, { method = 'GET', body = null, timeout = 15000
       // session expired or revoked: forget the token so the UI asks to log in again
       const { settings } = await chrome.storage.local.get('settings');
       await chrome.storage.local.set({ settings: { ...(settings || {}), backendToken: '' } });
-      await setSyncState({ lastError: 'Phiên đăng nhập hết hạn, hãy đăng nhập lại trong Cài đặt', lastErrorAt: Date.now() });
+      await setSyncState({ lastError: 'Your session expired. Sign in again in Settings', lastErrorAt: Date.now() });
     }
     if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
     return data;
@@ -361,8 +361,8 @@ async function backendFetch(path, { method = 'GET', body = null, timeout = 15000
 
 export async function backendLogin({ url, email, password, register = false, inviteCode = '' }) {
   const base = String(url || '').trim().replace(/\/$/, '');
-  if (!base) throw new Error('Thiếu địa chỉ server');
-  const label = `extension · ${navigator.platform || 'máy'}`;
+  if (!base) throw new Error('The server address is missing');
+  const label = `extension · ${navigator.platform || 'device'}`;
   const data = register
     ? await backendFetch('/api/v1/auth/register', { method: 'POST', url: base, body: { email, password, inviteCode, kind: 'extension' } })
     : await backendFetch('/api/v1/auth/login', { method: 'POST', url: base, body: { email, password, kind: 'extension', label } });
@@ -466,7 +466,7 @@ export async function pullEnriched({ max = 15 } = {}) {
         pulled += 1;
       } else if (sv.enrichmentStatus === 'failed') {
         const fresh = await db.get('vocabulary', v.id);
-        if (fresh) { fresh.enrichmentStatus = 'failed'; fresh.enrichmentError = sv.enrichmentError || 'Server: AI lỗi'; await db.put('vocabulary', fresh); }
+        if (fresh) { fresh.enrichmentStatus = 'failed'; fresh.enrichmentError = sv.enrichmentError || 'Server: AI failed'; await db.put('vocabulary', fresh); }
       }
     } catch (err) {
       if (/HTTP 404/.test(err.message)) { const fresh = await db.get('vocabulary', v.id); if (fresh) { delete fresh.serverId; await db.put('vocabulary', fresh); } }

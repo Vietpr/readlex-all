@@ -59,10 +59,10 @@
       try {
         chrome.runtime.sendMessage({ type, ...payload }, (resp) => {
           if (chrome.runtime.lastError) resolve({ ok: false, error: chrome.runtime.lastError.message });
-          else resolve(resp || { ok: false, error: 'Không có phản hồi từ extension' });
+          else resolve(resp || { ok: false, error: 'No response from the extension' });
         });
       } catch (err) {
-        resolve({ ok: false, error: err.message || 'Extension đã được tải lại, hãy refresh trang' });
+        resolve({ ok: false, error: err.message || 'The extension was reloaded. Refresh this page' });
       }
     });
   }
@@ -300,6 +300,7 @@
       shownWordText = wordData ? wordText : '';
       ui.showSentence(anchorFor(item), { translation: resp.data.translation, error: resp.data.error, word: wordData }, {
         showIpa: settings.showIpa,
+        shiftHint: (settings.hoverTarget || 'sentence') !== 'word', // in "word" mode this box is already the Shift view
         onSaveWord: wordData ? () => saveWord(wordUnder.type === 'ja' ? jaSaveFields(wordData) : wordText, ReadLexLocator.contextForRange(wordUnder.range), wordData) : null,
       });
     }, delay);
@@ -395,17 +396,18 @@
       lookupResult: lookupResult && !lookupResult.error ? lookupResult : null,
     });
     if (!resp.ok) {
-      ui.showToast(`Không lưu được: ${resp.error}`);
+      ui.showToast(`Could not save: ${resp.error}`);
       return null;
     }
     const { vocabulary, exposure, created, duplicateExposure } = resp.data;
     if (lookupResult) lookupResult.saved = { id: vocabulary.id, lemma: vocabulary.lemma, status: vocabulary.status, exposureCount: vocabulary.exposureCount };
     const label = vocabulary.lemma;
     const text = created
-      ? `Đã lưu “${label}” vào ReadLex`
-      : duplicateExposure ? `“${label}” đã có sẵn với câu này` : `Đã thêm ngữ cảnh mới cho “${label}”`;
+      ? (ctx?.sentence ? `Saved “${label}” with this sentence` : `Saved “${label}” to ReadLex`)
+      : duplicateExposure ? `“${label}” is already saved with this sentence` : `Added a new sentence for “${label}”`;
     ui.showToast(text, {
-      actionLabel: duplicateExposure ? '' : 'Hoàn tác',
+      kind: 'ok',
+      actionLabel: duplicateExposure ? '' : 'Undo',
       onAction: () => send('UNDO_SAVE', { vocabularyId: vocabulary.id, exposureId: exposure?.id, created }),
     });
     return resp.data;

@@ -4,7 +4,7 @@ Extension Chrome giúp đọc báo tiếng Anh và tiếng Nhật: rê chuột h
 kèm đúng câu đang đọc, rồi để Gemini giải thích nghĩa theo ngữ cảnh, collocation và ví dụ để tối về học lại.
 
 ```
-Đọc báo → hover / bôi đen → hiểu ngay → ☆ Lưu (kèm câu, trang, ngày)
+Đọc báo → hover / bôi đen → hiểu ngay → Lưu từ (kèm câu, trang, ngày)
         → Gemini enrich ở nền → Kho từ vựng (nghĩa theo ngữ cảnh, collocation, ví dụ, CEFR, độ đáng học)
 ```
 
@@ -23,16 +23,16 @@ tập (FSRS) là các giai đoạn sau, xem [docs/PLAN.md](docs/PLAN.md).
 
 | Thao tác | Kết quả |
 |---|---|
-| Rê chuột vào một câu (mặc định, chờ 300 ms) | Hộp xanh dịch **cả câu** dưới con trỏ, kiểu tudienjp. Chuyển câu khác thì đổi theo |
+| Rê chuột vào một câu (mặc định, chờ 300 ms) | Hộp dịch **cả câu** hiện dưới con trỏ, kiểu tudienjp. Chuyển câu khác thì đổi theo |
 | Giữ `Shift` khi rê chuột | Tạm đổi sang tra **từ** dưới con trỏ: IPA, loại từ, nghĩa, ví dụ từ từ điển offline |
-| Chế độ "câu + từ" (Cài đặt) | Hộp dịch câu kèm một dòng nghĩa của từ đang trỏ, có nút ☆ Lưu |
+| Chế độ "câu + từ" (Cài đặt) | Hộp dịch câu kèm một dòng nghĩa của từ đang trỏ, có nút Lưu |
 | Bôi đen hoặc nháy đúp một từ | Popup từ điển đầy đủ của từ đó, ghim lại tới khi bấm ra ngoài |
 | Bôi đen một cụm / câu | Popup dịch cụm đó |
 | Văn bản tiếng Nhật | Tự nhận ra theo ký tự. Rê chuột dịch câu như tiếng Anh; giữ Shift hoặc nháy đúp để tra từ: từ điển tự tìm ranh giới từ và đưa về dạng từ điển (買いました → 買う【かう】, kèm nhãn "quá khứ lịch sự"), tô sáng từ được nhận trên trang, kèm thông tin kanji (JLPT, số nét) |
-| Bấm ☆ **Lưu** trong popup | Lưu từ kèm câu, đoạn, URL, tiêu đề trang. Toast có **Hoàn tác** |
+| Bấm **Lưu từ này** trong popup | Lưu từ kèm câu, đoạn, URL, tiêu đề trang. Toast có **Hoàn tác** |
 | Chuột phải → *Lưu "…" vào ReadLex* | Như trên, không cần popup |
 | `Alt+Shift+H` | Bật / tắt nhanh chế độ hover |
-| Icon ReadLex | Từ lưu hôm nay, tìm nhanh, tắt trên trang này, số từ đang chờ AI |
+| Icon ReadLex | Bật / tắt trên trang này, số từ lưu hôm nay, số từ đang chờ AI, tìm nhanh, mở kho từ vựng |
 | **Kho từ vựng** | Toàn bộ từ, lọc / sắp xếp, chi tiết AI, "bạn đã gặp từ này ở đâu", export JSON / Anki |
 
 Trong **Cài đặt** có thể đổi: hover dịch câu / từ / cả hai, kích hoạt bằng rê chuột / giữ Alt / giữ Ctrl / tắt,

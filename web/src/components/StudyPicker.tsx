@@ -15,26 +15,22 @@ export function launch(target: StudyTarget, mode: StudyMode) {
 }
 
 interface ModeDef { mode: StudyMode; label: string; hint: string; icon: IconName; tag?: string }
-const LEARN: ModeDef = { mode: 'learn', label: 'Learn', hint: 'A guided mix of easier and harder questions that adapts as you go.', icon: 'zap', tag: 'Recommended' };
+const LEARN: ModeDef = { mode: 'learn', label: 'Learn', hint: 'Three clear steps for every word: meet it, choose the right answer, then write it from memory.', icon: 'zap', tag: 'Recommended' };
 const PRACTICE: ModeDef[] = [
   { mode: 'flash', label: 'Flashcards', hint: 'Flip terms, meanings and real reading context.', icon: 'layers' },
   { mode: 'write', label: 'Write', hint: 'Recall the word and type it from memory.', icon: 'keyboard' },
   { mode: 'listen', label: 'Listen', hint: 'Hear the word, then type what you heard.', icon: 'headphones' },
-  { mode: 'quiz', label: 'Quick quiz', hint: 'Choose the right word from a few options.', icon: 'listChecks' },
-  { mode: 'context', label: 'In context', hint: 'Complete sentences you actually saved while reading.', icon: 'quote' },
 ];
 const GAMES: ModeDef[] = [
-  { mode: 'match', label: 'Match', hint: 'Pair words and meanings against the clock.', icon: 'grid', tag: 'Game' },
-  { mode: 'sprint', label: 'Recall sprint', hint: 'A 45-second speed round using meanings and context.', icon: 'timer', tag: 'Game' },
+  { mode: 'match', label: 'Match', hint: 'Pair words and meanings against the clock.', icon: 'grid' },
+  { mode: 'sprint', label: 'Recall sprint', hint: 'A 45-second speed round.', icon: 'timer' },
 ];
 
 // Why a mode cannot be used with these cards ('' when it can).
 export function unavailable(mode: StudyMode, cards: CardContent[]): string {
   if (!cards.length) return 'No words here yet';
-  if (mode === 'quiz' && cards.length < 2) return 'Needs at least 2 words';
   if (mode === 'match' && cards.filter((c) => cardMeaning(c)).length < 2) return 'Needs at least 2 words with a meaning';
   if (mode === 'sprint' && cards.filter((c) => cardMeaning(c)).length < 2) return 'Needs at least 2 words with a meaning';
-  if (mode === 'context' && !cards.some((c) => c.front.cloze)) return 'Needs words saved with their sentence';
   return '';
 }
 
@@ -44,7 +40,7 @@ function ModeButton({ def, cards, onChoose, compact = false }: { def: ModeDef; c
     <button className={compact ? 'mode-card' : 'mode-hero'} data-mode={def.mode} disabled={!!why} onClick={() => onChoose(def.mode)}>
       <span className="mode-icon"><Icon name={def.icon} size={compact ? 20 : 22} /></span>
       <span className="mode-copy grow">
-        <span className="mode-title"><b>{def.label}</b>{def.tag && <span className={`badge${def.tag === 'Game' ? ' gray' : ''}`}>{def.tag}</span>}</span>
+        <span className="mode-title"><b>{def.label}</b>{def.tag && <span className="badge">{def.tag}</span>}</span>
         <span className="muted small mode-hint">{why || def.hint}</span>
       </span>
       {!compact && <Icon name="chevronRight" size={18} className="muted" />}
@@ -80,14 +76,14 @@ export function StudyPicker({ target, onClose }: { target: StudyTarget; onClose:
         <div className="row sheet-head">
           <div className="grow">
             <h2 id="study-picker-title">How do you want to study?</h2>
-            <div className="muted small">{/\d+ words?\b/.test(target.title) ? target.title : `${target.title} · ${n} ${n === 1 ? 'word' : 'words'}`}</div>
+            <div className="muted small">{/\d+ words?$/.test(target.title) ? target.title : `${target.title} · ${n} ${n === 1 ? 'word' : 'words'}`}</div>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="x" /></button>
         </div>
 
         <ModeButton def={LEARN} cards={target.cards} onChoose={choose} />
 
-        <div className="mode-section-label">Practice</div>
+        <div className="mode-section-label">Practice one skill</div>
         <div className="mode-grid">
           {PRACTICE.map((m) => <ModeButton key={m.mode} def={m} cards={target.cards} onChoose={choose} compact />)}
         </div>
@@ -97,7 +93,7 @@ export function StudyPicker({ target, onClose }: { target: StudyTarget; onClose:
           {GAMES.map((m) => <ModeButton key={m.mode} def={m} cards={target.cards} onChoose={choose} compact />)}
         </div>
 
-        <p className="muted small sheet-note"><b>Learn</b> is the best default for memory. Optional games are practice only and never change a card's review schedule.</p>
+        <p className="muted small sheet-note"><b>Learn</b> is the best default for memory. The two games are practice only and never change a card's review schedule.</p>
       </div>
     </div>
   );

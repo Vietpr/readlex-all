@@ -1,0 +1,21 @@
+/* Match game: drag-and-drop additions. Loaded after styles.css, so it may refine the base .match-* rules there. */
+:root { --match-shadow: 0 14px 30px rgba(23, 32, 43, .18), 0 3px 8px rgba(23, 32, 43, .12); }
+@media (prefers-color-scheme: dark) { :root { --match-shadow: 0 14px 30px rgba(0, 0, 0, .55), 0 3px 8px rgba(0, 0, 0, .4); } }
+
+.match-hint { margin: -2px 0 10px; font-size: 13.5px; color: var(--muted); }
+
+/* Tiles are buttons, so Enter/Space and tap keep pairing; touch-action: none hands touch moves to the drag logic instead of the page scroll. */
+.match-tile { position: relative; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.match-tile:disabled { cursor: default; }
+.match-tile:active:not(:disabled) { cursor: grabbing; }
+
+/* The tile in flight: inline transform moves it; this only lifts it above the board and gives it the soft shadow. */
+.match-tile.dragging { z-index: 6; cursor: grabbing; pointer-events: none; border-color: var(--fg); background: var(--accent-soft); box-shadow: var(--match-shadow); }
+
+/* The tile under the pointer in the other column. The carried tile usually covers most of it, so the highlight
+   is also a ring that spills outside the tile's edge. */
+.match-tile.drop-target { border-color: var(--fg); background: var(--mark); color: var(--mark-fg); transform: scale(1.05); box-shadow: 0 0 0 4px var(--mark), inset 0 -3px 0 var(--mark-edge); }
+.match-tile.drop-target.selected { background: var(--mark); }
+
+/* While something is being dragged, only the drop target reacts to hover. */
+.match.is-dragging .match-tile:hover:not(:disabled):not(.drop-target) { border-color: var(--line); }

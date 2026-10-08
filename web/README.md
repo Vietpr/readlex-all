@@ -5,14 +5,18 @@ chỉ là file tĩnh, host trên GitHub Pages.
 
 ## Màn hình (giao diện tiếng Anh)
 
+Giao diện dùng chung một bộ nhận diện với extension: nền giấy sáng, chữ màu mực, vàng dạ quang cho nút chính và từ được
+tô; chữ giao diện là Be Vietnam Pro, từ vựng và câu trích từ bài đọc là Literata. Có chế độ tối theo hệ thống. Bố cục
+co giãn từ điện thoại tới laptop (trang Today, Library, Progress chia hai cột từ 900px).
+
 Mô hình: **Saved words** (lưu không giới hạn) → **Daily Sets** (tự nhóm theo ngày, chỉ là cách xem) → **FSRS reviews**
 (mỗi từ đúng một thẻ, lịch ôn độc lập với set).
 
-- **Today**: thẻ đến hạn với nút Start review (flashcard, có chấm FSRS), **Today's words** với một nút chính
-  (Start / Continue learning = chế độ Learn) và hàng link nhanh `Flashcards · Write · Listen · More`; từ các ngày
-  trước chưa học; số liệu trong ngày ở cuối. Không bày sẵn cả loạt nút chế độ: `More` mở bảng chọn chế độ
-  (bottom sheet trên điện thoại, hộp thoại trên desktop): Learn nổi bật ở trên, nhóm **Practice** (Flashcards, Write,
-  Listen, Quick quiz, In context) và nhóm **Games** (Match, Recall sprint); chế độ không dùng được thì ghi rõ lý do.
+- **Today**: một kế hoạch đánh số thay cho các thẻ rời (`src/plan.ts`): 1) ôn thẻ đến hạn (Flashcards, có chấm FSRS),
+  2) học từ lưu hôm nay (Learn), 3) học nốt từ lưu hôm trước. Chỉ việc đầu tiên còn dang dở có nút chính; các việc khác
+  có nút phụ "Learn now", việc xong rồi hiện dấu tích. "Review another way" mở bảng chọn chế độ (bottom sheet trên điện
+  thoại, hộp thoại trên desktop). Cột bên: các ngày đã học trong tuần, streak, số từ lưu và lượt ôn hôm nay. Hết một
+  phiên học, màn kết thúc gợi ý luôn việc kế tiếp trong kế hoạch (`components/NextStep.tsx`).
 - **AI điền nghĩa**: mọi chỗ gõ từ (Create set, Add words trong set, Add word) đều có nút ✨ cho từng dòng và nút
   "Fill N meanings with AI" ở dưới. Nút gọi `POST /api/v1/define` bằng key Gemini của chính user, chỉ điền vào ô nghĩa
   còn trống (không ghi đè chữ đã gõ, kể cả khi bạn gõ tiếp trong lúc chờ), tiếng Nhật điền luôn cả reading. Từ AI không
@@ -65,7 +69,7 @@ Mô hình: **Saved words** (lưu không giới hạn) → **Daily Sets** (tự n
 - **Progress**: bốn ô tóm tắt (day streak, words learned = đã học ít nhất một lần, recall rate, reviews this week),
   Learning progress (New / Learning / Long-term review, không dùng chữ "mastered"), heatmap 12 tuần, Recall rate
   (= tỉ lệ review chấm Hard/Good/Easy, Again là trượt; có ghi rõ cách tính), **Needs attention** (từ bị Again từ
-  2 lần trong 90 ngày) với nút Practice difficult words, 30 ngày lưu từ, CEFR / JLPT.
+  2 lần trong 90 ngày) với nút Practice difficult words, 30 ngày lưu từ.
 - Nếu backend chạy với `GEMINI_MOCK=1`, Settings hiện cảnh báo đỏ ("fake Gemini") và mỗi lần bấm ✨ cũng nói rõ nghĩa
   vừa điền là giả lập — vì ở chế độ đó mọi key đều "lưu thành công" mà không hề được kiểm tra.
 - **Settings**: Account, AI assistance (Gemini key, model trong Advanced), Learning (bật tắt English / Japanese),

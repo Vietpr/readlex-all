@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ReadLex",
   "version": "0.1.0",
-  "description": "Tra nhanh từ tiếng Anh khi đọc, lưu kèm ngữ cảnh, AI giải thích để học lại sau.",
+  "description": "Look up English and Japanese words as you read, save them with their sentence, and let AI explain them for later study.",
   "minimum_chrome_version": "116",
   "permissions": ["storage", "unlimitedStorage", "contextMenus", "alarms", "activeTab"],
   "host_permissions": [
@@ -47,7 +47,7 @@
   "commands": {
     "toggle-hover": {
       "suggested_key": { "default": "Alt+Shift+H" },
-      "description": "Bật / tắt dịch khi rê chuột"
+      "description": "Turn hover translation on or off"
     }
   }
 }

@@ -14,7 +14,7 @@ export function SetDetail({ date }: { date: string }) {
   useEffect(() => { load(); }, [date]);
   return (
     <div>
-      <button className="back-link" onClick={() => navigate('/library/sets')}><Icon name="arrowLeft" size={16} />Daily Sets</button>
+      <button className="back-link" onClick={() => navigate('/library')}><Icon name="arrowLeft" size={16} />Library</button>
       <h1>{formatSetDate(date, 'long')}</h1>
       {error && <p className="error">{error}</p>}
       {!cards && !error && <p className="muted">Loading…</p>}
@@ -29,7 +29,7 @@ export function SetDetail({ date }: { date: string }) {
               <li key={c.cardId} className="with-action">
                 <span className="w" onClick={() => navigate(`/library/${c.vocabularyId}`)}>{c.lemma}{c.reading ? <span className="muted"> {c.reading}</span> : null}</span>
                 <span className="m" onClick={() => navigate(`/library/${c.vocabularyId}`)}>{c.back.meaning}</span>
-                <span className="meta">{c.back.level && <span className="level">{c.back.level}</span>}<StatePill card={c} /></span>
+                <span className="meta"><StatePill card={c} /></span>
                 <DeleteWordButton id={c.vocabularyId} lemma={c.lemma} onDeleted={load} onError={setError} />
               </li>
             ))}

@@ -39,7 +39,7 @@ export function CustomSetDetail({ id }: { id: string }) {
 
   return (
     <div>
-      <button className="back-link" onClick={() => navigate('/library/my')}><Icon name="arrowLeft" size={16} />My Sets</button>
+      <button className="back-link" onClick={() => navigate('/library')}><Icon name="arrowLeft" size={16} />Library</button>
       {editing ? (
         <div className="row title-edit"><input className="input" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') rename(); if (e.key === 'Escape') setEditing(false); }} autoFocus maxLength={80} /><button className="btn primary small" onClick={rename}>Save</button><button className="btn small" onClick={() => setEditing(false)}>Cancel</button></div>
       ) : (
@@ -71,7 +71,7 @@ export function CustomSetDetail({ id }: { id: string }) {
               <li key={c.cardId} className="with-action">
                 <span className="w" onClick={() => navigate(`/library/${c.vocabularyId}`)}>{c.lemma}{c.reading ? <span className="muted"> {c.reading}</span> : null}</span>
                 <span className="m" onClick={() => navigate(`/library/${c.vocabularyId}`)}>{c.back.meaning}</span>
-                <span className="meta">{c.back.level && <span className="level">{c.back.level}</span>}<StatePill card={c} /></span>
+                <span className="meta"><StatePill card={c} /></span>
                 <button className="icon-btn" aria-label={`Remove ${c.lemma} from this set`} title="Remove from set" onClick={async (e) => { e.stopPropagation(); await api.removeFromSet(id, c.vocabularyId); setCards((list) => (list || []).filter((x) => x.cardId !== c.cardId)); }}><Icon name="x" size={16} /></button>
               </li>
             ))}
@@ -124,7 +124,7 @@ function AddWordsPanel({ setId, defaultLanguage, exclude, onAdded, onClose }: { 
           {error && <p className="error">{error}</p>}
           <div className="composer-foot">
             <span className="muted small">{added ? `${added} ${added === 1 ? 'word' : 'words'} added to this set so far.` : ''}</span>
-            <div className="row"><button className="btn" onClick={onClose} disabled={busy}>{added ? 'Done' : 'Cancel'}</button><button className="btn primary" onClick={addTyped} disabled={busy || !n}>{busy ? 'Adding…' : `Add ${n || ''} ${n === 1 ? 'word' : 'words'}`.replace('  ', ' ')}</button></div>
+            <div className="row"><button className="btn" onClick={onClose} disabled={busy}>{added ? 'Done' : 'Cancel'}</button><button className="btn primary" onClick={addTyped} disabled={busy || !n}>{busy ? 'Adding…' : n ? `Add ${n} ${n === 1 ? 'word' : 'words'}` : 'Add words'}</button></div>
           </div>
         </>
       ) : (
@@ -165,7 +165,7 @@ function WordPicker({ exclude, onAdd, onCancel, onTypeInstead }: { exclude: Set<
         )}
         {!items && <li className="pick-empty"><span className="muted small">Loading…</span></li>}
       </ul>
-      <div className="row"><button className="btn primary small" disabled={!picked.size || busy} onClick={async () => { setBusy(true); try { await onAdd([...picked]); } finally { setBusy(false); } }}>Add {picked.size || ''} {picked.size === 1 ? 'word' : 'words'}</button><button className="btn small" onClick={onCancel}>Cancel</button></div>
+      <div className="row"><button className="btn primary small" disabled={!picked.size || busy} onClick={async () => { setBusy(true); try { await onAdd([...picked]); } finally { setBusy(false); } }}>{picked.size ? `Add ${picked.size} ${picked.size === 1 ? 'word' : 'words'}` : 'Add words'}</button><button className="btn small" onClick={onCancel}>Cancel</button></div>
     </div>
   );
 }

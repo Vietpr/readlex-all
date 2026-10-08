@@ -163,6 +163,7 @@ try {
       host: true,
       popupVisible: popup && !popup.hidden,
       popupText: popup ? popup.textContent : '',
+      sentenceText: popup ? (popup.querySelector('.rl-sent-text')?.textContent ?? '') : '', // the translation alone, without the "Hold Shift…" hint line
       popupStyle: popup ? { left: popup.style.left, top: popup.style.top } : null,
       toastVisible: toast && !toast.hidden,
       toastText: toast ? toast.textContent : '',
@@ -186,7 +187,7 @@ try {
   await page.mouse.move(cs.x + 1, cs.y);
   await sleep(1500);
   ui = await readUi();
-  check('sentence hover shows the whole sentence translated', ui.host && ui.popupVisible && (LIVE ? ui.popupText.length > 20 : /^MOCK The economy remains resilient even as the government imposed sweeping tariffs on imports\.$/.test(ui.popupText.trim())), ui.popupText.slice(0, 120));
+  check('sentence hover shows the whole sentence translated', ui.host && ui.popupVisible && (LIVE ? ui.popupText.length > 20 : /^MOCK The economy remains resilient even as the government imposed sweeping tariffs on imports\.$/.test(ui.sentenceText.trim())), ui.popupText.slice(0, 120));
   if (!LIVE) {
     const calls = await worker.evaluate(() => self.__mockCalls);
     check('sentence hover: exactly one Google call, no dictionary API, no Gemini', calls.google === 1 && calls.dict === 0 && calls.gemini === 0, JSON.stringify(calls));
@@ -210,7 +211,7 @@ try {
   await page.mouse.move(cj.x + 1, cj.y);
   await sleep(1500);
   ui = await readUi();
-  check('Japanese sentence hover translated with sl=ja', ui.popupVisible && (LIVE ? ui.popupText.length > 5 : /^MOCKJA 私は昨日新しい本を買いました。$/.test(ui.popupText.trim())), ui.popupText.slice(0, 80));
+  check('Japanese sentence hover translated with sl=ja', ui.popupVisible && (LIVE ? ui.popupText.length > 5 : /^MOCKJA 私は昨日新しい本を買いました。$/.test(ui.sentenceText.trim())), ui.popupText.slice(0, 80));
   await page.mouse.move(20, 850);
   await sleep(400);
 
@@ -250,7 +251,7 @@ try {
   await clickShadow('.rl-save');
   await sleep(700);
   ui = await readUi();
-  check('Japanese word saved under its dictionary form', /Đã lưu “買う”/.test(ui.toastText), ui.toastText);
+  check('Japanese word saved under its dictionary form', /Saved “買う”/.test(ui.toastText), ui.toastText);
   await page.mouse.move(20, 850);
   await sleep(400);
   const before = LIVE ? null : await worker.evaluate(() => ({ ...self.__mockCalls }));
@@ -276,7 +277,7 @@ try {
   check('save button present', await clickShadow('.rl-save'));
   await sleep(700);
   ui = await readUi();
-  check('toast confirms save', ui.toastVisible && /Đã lưu/.test(ui.toastText), ui.toastText);
+  check('toast confirms save', ui.toastVisible && /Saved/.test(ui.toastText), ui.toastText);
 
   // 3. move away → popup hides
   await page.mouse.move(20, 850);
@@ -407,7 +408,7 @@ try {
       await p.click('#list li');
       await sleep(400);
       const detail = await p.$eval('#detail', (d) => d.textContent);
-      check('vocabulary detail shows exposures', /Bạn đã gặp từ này ở đâu/.test(detail));
+      check('vocabulary detail shows exposures', /Where you met this word/.test(detail));
     }
     await p.close();
   }

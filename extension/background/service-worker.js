@@ -12,8 +12,8 @@ const MENU_TRANSLATE = 'readlex-translate';
 
 function setupContextMenus() {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: MENU_SAVE, title: 'Lưu "%s" vào ReadLex', contexts: ['selection'] });
-    chrome.contextMenus.create({ id: MENU_TRANSLATE, title: 'Dịch "%s" (ReadLex)', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU_SAVE, title: 'Save "%s" to ReadLex', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU_TRANSLATE, title: 'Translate "%s" (ReadLex)', contexts: ['selection'] });
   });
 }
 
@@ -78,7 +78,7 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (s.hoverMode === 'off') next = await setSettings({ hoverMode: s.lastHoverMode || 'hover' });
   else next = await setSettings({ hoverMode: 'off', lastHoverMode: s.hoverMode });
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) sendToTab(tab.id, { type: 'SHOW_TOAST', text: next.hoverMode === 'off' ? 'ReadLex: đã tắt dịch khi rê chuột' : 'ReadLex: đã bật dịch khi rê chuột' });
+  if (tab?.id) sendToTab(tab.id, { type: 'SHOW_TOAST', text: next.hoverMode === 'off' ? 'ReadLex: hover translation is off' : 'ReadLex: hover translation is on' });
 });
 
 async function handleMessage(msg, sender) {

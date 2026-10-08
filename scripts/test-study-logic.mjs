@@ -88,60 +88,87 @@ const match = L.pickMatchCards([card(), card({ lemma: 'curb', back: { meaning: '
 check('match board: no empty or repeated meanings', match.length === 3 && !match.some((c) => c.lemma === 'blank') && match.filter((c) => /kiềm chế/i.test(c.back.meaning)).length === 1, JSON.stringify(match.map((c) => c.lemma)));
 check('match board is capped', L.pickMatchCards(Array.from({ length: 20 }, (_, i) => card({ lemma: 'w' + i, back: { meaning: 'm' + i } })), 6).length === 6);
 
-// ---- Learn engine ----
-const caps = { canChoose: () => true, listen: true };
-eq('new word: study -> choice -> context -> write', L.ladderFor(card(), caps), { ladder: ['study', 'choice', 'context', 'write'], start: 0 });
-eq('learning word skips the study card', L.ladderFor(card({ schedule: { state: 1 } }), caps).start, 1);
-eq('relearning word skips the study card', L.ladderFor(card({ schedule: { state: 3 } }), caps).start, 1);
-eq('long-term word: starts at its sentence, ends with listening', L.ladderFor(card({ schedule: { state: 2 } }), caps), { ladder: ['study', 'choice', 'context', 'write', 'listen'], start: 2 });
-eq('no sentence: no context step', L.ladderFor(card({ front: { cloze: null } }), caps).ladder, ['study', 'choice', 'write']);
-eq('long-term word without a sentence starts at write', L.ladderFor(card({ front: { cloze: null }, schedule: { state: 2 } }), caps), { ladder: ['study', 'choice', 'write', 'listen'], start: 2 });
-eq('no distractors: no multiple choice', L.ladderFor(card(), { canChoose: () => false, listen: true }).ladder, ['study', 'write']);
-eq('identical meanings in the pool: skip the meaning question only', L.ladderFor(card(), { canChoose: (_c, what) => what === 'word', listen: true }).ladder, ['study', 'context', 'write']);
-eq('no audio: no listen step', L.ladderFor(card({ schedule: { state: 2 } }), { canChoose: () => true, listen: false }).ladder, ['study', 'choice', 'context', 'write']);
-eq('nothing to ask: study only', L.ladderFor(card({ front: { cloze: null }, back: { meaning: '', definitionEn: '' } }), caps).ladder, ['study']);
+// ---- Learn engine: rounds of up to 6 words, each round in three phases (meet -> choose -> write) ----
+const caps = { canChoose: () => true };
+eq('new word: meet, choose (the sentence), write', L.stepsFor(card(), caps), { steps: ['meet', 'choose', 'write'], chooseKind: 'context' });
+eq('learning word skips meet', L.stepsFor(card({ schedule: { state: 1 } }), caps).steps, ['choose', 'write']);
+eq('long-term word skips meet too', L.stepsFor(card({ schedule: { state: 2 } }), caps).steps, ['choose', 'write']);
+eq('relearning word skips meet', L.stepsFor(card({ schedule: { state: 3 } }), caps).steps, ['choose', 'write']);
+eq('no sentence: choose asks the meaning instead', L.stepsFor(card({ front: { cloze: null } }), caps), { steps: ['meet', 'choose', 'write'], chooseKind: 'meaning' });
+eq('no distractors: no choose phase', L.stepsFor(card(), { canChoose: () => false }), { steps: ['meet', 'write'], chooseKind: null });
+eq('identical meanings in the pool but distinct words: the sentence question still works', L.stepsFor(card(), { canChoose: (_c, what) => what === 'word' }).chooseKind, 'context');
+eq('distinct meanings but no other word: fall back to the meaning question', L.stepsFor(card(), { canChoose: (_c, what) => what === 'meaning' }).chooseKind, 'meaning');
+eq('a sentence but no meaning: no meaning question possible, write still asks', L.stepsFor(card({ back: { meaning: '', definitionEn: '' } }), { canChoose: (_c, what) => what === 'meaning' }).steps, ['meet', 'write']);
+eq('nothing to ask: meet only', L.stepsFor(card({ front: { cloze: null }, back: { meaning: '', definitionEn: '' } }), caps).steps, ['meet']);
+eq('nothing to ask on a learning word: still shown once rather than skipped silently', L.stepsFor(card({ front: { cloze: null }, back: { meaning: '', definitionEn: '' }, schedule: { state: 1 } }), caps).steps, ['meet']);
 
-const run = (state, script) => { const done = []; let s = state; for (const r of script) { const out = L.answer(s, r); s = out.state; if (out.completed) done.push(out.completed); } return { s, done }; };
-let s0 = L.createLearn([card()], caps);
-eq('first step of a new word', L.currentStep(s0), 'study');
-let r1 = run(s0, ['seen', 'correct', 'correct', 'correct']);
-check('a clean climb finishes the word and the session', r1.s.phase === 'finished' && r1.done.length === 1 && r1.done[0].mistakes === 0);
-eq('clean climb rates Good', L.ratingFor(r1.done[0]), 3);
-eq('progress reaches 100%', L.progress(r1.s), 1);
-r1 = run(s0, ['seen', 'wrong']);
-eq('a miss on the first question goes back to the card', L.currentStep(r1.s), 'study');
-r1 = run(s0, ['seen', 'correct', 'wrong']);
-eq('a miss moves one rung down', L.currentStep(r1.s), 'choice');
-check('progress never moves backwards', L.progress(r1.s) === L.progress(run(s0, ['seen', 'correct']).s) && L.progress(r1.s) === 0.5, String(L.progress(r1.s)));
-r1 = run(s0, ['seen', 'correct', 'wrong', 'correct', 'correct', 'correct']);
-eq('one miss rates Hard', L.ratingFor(r1.done[0]), 2);
-r1 = run(s0, ['seen', 'wrong', 'seen', 'wrong', 'seen', 'correct', 'correct', 'correct']);
-eq('two misses rate Again', L.ratingFor(r1.done[0]), 1);
-const studyOnly = run(L.createLearn([card({ front: { cloze: null }, back: { meaning: '', definitionEn: '' } })], caps), ['seen']);
-check('a word that could not be tested is finished but never rated', studyOnly.s.phase === 'finished' && L.ratingFor(studyOnly.done[0]) === null);
-eq('unfinished words are not rated', L.ratingFor(run(s0, ['seen', 'correct']).s.words[0]), null);
-const skipped = run(L.createLearn([card({ schedule: { state: 2 } })], caps), ['correct', 'correct', 'skip']);
-check('skipping the listening step still finishes the word', skipped.s.phase === 'finished' && L.ratingFor(skipped.done[0]) === 3);
+// plays a script of results; records the step and word asked before each answer
+const run = (state, script) => { const done = [], trail = []; let s = state; for (const r of script) { trail.push(`${L.currentStep(s)}:${L.currentWord(s)?.card.lemma}`); const out = L.answer(s, r); s = out.state; if (out.completed) done.push(out.completed); } return { s, done, trail }; };
+const three = [card({ lemma: 'alpha', cardId: 'a' }), card({ lemma: 'beta', cardId: 'b' }), card({ lemma: 'gamma', cardId: 'c' })];
+const s3 = L.createLearn(three, caps, 7);
+eq('a round starts with meet, in saved order', [L.currentStep(s3), s3.queue], ['meet', [0, 1, 2]]);
+const clean3 = run(s3, ['seen', 'seen', 'seen', 'correct', 'correct', 'correct', 'correct', 'correct', 'correct']);
+eq('phase order: every word meets, then every word chooses, then every word writes', clean3.trail.map((t) => t.split(':')[0]), ['meet', 'meet', 'meet', 'choose', 'choose', 'choose', 'write', 'write', 'write']);
+check('each phase covers each word exactly once on a clean run', ['choose', 'write'].every((p) => new Set(clean3.trail.filter((t) => t.startsWith(p)).map((t) => t.split(':')[1])).size === 3) && clean3.s.phase === 'finished' && clean3.done.length === 3 && clean3.s.asked === 9, clean3.trail.join(' '));
+check('the question phases are shuffled, the same way for the same seed', JSON.stringify(L.createLearn(three, caps, 7).queue) === JSON.stringify(s3.queue) && [1, 2, 3, 4, 5, 6, 7, 8].some((seed) => { const t = run(L.createLearn(three, caps, seed), ['seen', 'seen', 'seen']).s; return t.queue.join() !== '0,1,2'; }));
+eq('progress reaches 100%', L.progress(clean3.s), 1);
+eq('every clean word is rated Good', clean3.done.map(L.ratingFor), [3, 3, 3]);
 
+// a miss: the word goes to the back of the current phase, never to an earlier one
+const atChoose = run(s3, ['seen', 'seen', 'seen']).s;
+const first = L.currentWord(atChoose).card.lemma;
+const missed = L.answer(atChoose, 'wrong').state;
+check('a miss on choose re-appends the word to the end of the choose queue', missed.step === 'choose' && missed.queue.length === 3 && missed.queue[2] === atChoose.queue[0] && L.currentWord(missed).card.lemma !== first, JSON.stringify([atChoose.queue, missed.queue]));
+const back = run(missed, ['correct', 'correct']);
+check('after the others it is asked again, still in choose', L.currentStep(back.s) === 'choose' && L.currentWord(back.s).card.lemma === first && back.s.words[atChoose.queue[0]].pos === 1);
+check('a miss never increases the word\'s position', missed.words[atChoose.queue[0]].pos === 1 && missed.words[atChoose.queue[0]].mistakes === 1);
+check('progress stands still on a miss, never goes back', L.progress(missed) === L.progress(atChoose), `${L.progress(missed)} vs ${L.progress(atChoose)}`);
+const toWrite = run(back.s, ['correct']).s;
+eq('once everyone has passed choose, the round moves on to write', L.currentStep(toWrite), 'write');
+const writeMiss = L.answer(toWrite, 'wrong').state;
+check('a miss on write stays in write and never falls back to choose', writeMiss.step === 'write' && writeMiss.queue.length === 3 && writeMiss.queue[2] === toWrite.queue[0] && L.progress(writeMiss) === L.progress(toWrite));
+const twoMisses = run(writeMiss, ['correct', 'correct', 'correct']);
+check('two misses in the round (one in choose, one in write) still end with every word finished', twoMisses.s.phase === 'finished' && twoMisses.done.length === 3 && twoMisses.s.asked === 11, `${twoMisses.s.phase} ${twoMisses.done.length} ${twoMisses.s.asked}`);
+const choseMiss = first, wroteMiss = L.currentWord(toWrite).card.lemma;
+const wantRating = Object.fromEntries(three.map((c) => [c.lemma, 3]));
+wantRating[choseMiss] -= 1; wantRating[wroteMiss] -= 1;   // 3 Good, 2 Hard (one miss), 1 Again (two misses)
+eq('ratings follow the miss count: none Good, one Hard, two Again', three.map((c) => L.ratingFor(twoMisses.done.find((w) => w.card.lemma === c.lemma))), three.map((c) => wantRating[c.lemma]));
+// progress is monotone through a run with mistakes
+{ let s = s3, last = 0, monotone = true; for (const r of ['seen', 'seen', 'seen', 'wrong', 'correct', 'wrong', 'correct', 'correct', 'wrong', 'correct', 'correct', 'correct']) { const p = L.progress(s); if (p < last - 1e-9) monotone = false; last = p; s = L.answer(s, r).state; } check('progress never decreases through a run with three misses', monotone && s.phase === 'finished' && L.progress(s) === 1); }
+
+// skipping meet for words already being learned, mixed with a new one
+const mixed = L.createLearn([card({ lemma: 'fresh', cardId: 'f' }), card({ lemma: 'known', cardId: 'k', schedule: { state: 1 } })], caps, 3);
+eq('only the new word is met; the phase then moves on with both', run(mixed, ['seen']).trail.concat([`${L.currentStep(run(mixed, ['seen']).s)}`]), ['meet:fresh', 'choose']);
+check('the learning word joins at choose', run(mixed, ['seen']).s.queue.length === 2);
+eq('a learning-only session starts straight at choose', L.currentStep(L.createLearn([card({ schedule: { state: 1 } })], caps)), 'choose');
+const meetOnly = run(L.createLearn([card({ front: { cloze: null }, back: { meaning: '', definitionEn: '' } })], caps), ['seen']);
+check('a word that could not be tested is finished but never rated', meetOnly.s.phase === 'finished' && meetOnly.done.length === 1 && L.ratingFor(meetOnly.done[0]) === null);
+eq('unfinished words are not rated', L.ratingFor(run(s3, ['seen', 'seen', 'seen', 'correct']).s.words[0]), null);
+const skipped = run(L.createLearn([card({ schedule: { state: 1 } })], caps), ['skip', 'correct']);
+check('a skipped question passes the slot without counting as tested', skipped.s.phase === 'finished' && skipped.done[0].tested === 1 && L.ratingFor(skipped.done[0]) === 3);
+eq('phaseCount: how many of the round have taken the current phase', [L.phaseCount(s3), L.phaseCount(run(s3, ['seen']).s), L.phaseCount(run(mixed, ['seen']).s)], [{ done: 0, total: 3 }, { done: 1, total: 3 }, { done: 0, total: 2 }]);
+
+// rounds and checkpoints
 const many = Array.from({ length: 14 }, (_, i) => card({ lemma: 'word' + i, cardId: 'c' + i }));
-let big = L.createLearn(many, caps);
+let big = L.createLearn(many, caps, 11);
 eq('14 words are split into balanced rounds', big.rounds.map((r) => r.length), [5, 5, 4]);
 eq('7 words avoid a one-word round', L.createLearn(many.slice(0, 7), caps).rounds.map((r) => r.length), [4, 3]);
-// spacing: after the study card the same word must not come straight back while others are waiting
-const afterSeen = L.answer(big, 'seen').state;
-check('a word returns after other questions, not immediately', afterSeen.queue[0] !== 0 && afterSeen.queue.indexOf(0) === 2, JSON.stringify(afterSeen.queue));
-const afterWrong = L.answer(L.answer(afterSeen, 'seen').state, 'wrong').state;
-check('a wrong answer stays inside the round', afterWrong.queue.length === 5 && afterWrong.phase === 'question');
-// play everything correctly: rounds end with a checkpoint, then the session finishes
-let guard = 0, checkpoints = 0, finished = [];
+let guard = 0, checkpoints = 0, finished = [], roundsSeen = [];
 while (big.phase !== 'finished' && guard++ < 500) {
-  if (big.phase === 'checkpoint') { checkpoints++; big = L.nextRound(big); continue; }
-  const out = L.answer(big, L.currentStep(big) === 'study' ? 'seen' : 'correct');
+  if (big.phase === 'checkpoint') { checkpoints++; roundsSeen.push(big.round); big = L.nextRound(big); continue; }
+  const w = L.currentWord(big);
+  check(`word ${w.card.lemma} is asked inside its own round`, big.rounds[big.round].includes(big.words.indexOf(w)));
+  const out = L.answer(big, L.currentStep(big) === 'meet' ? 'seen' : 'correct');
   big = out.state; if (out.completed) finished.push(out.completed.card.lemma);
 }
-check('a full session: 2 checkpoints, every word finished once, 4 questions per new word', checkpoints === 2 && finished.length === 14 && new Set(finished).size === 14 && big.asked === 56, `${checkpoints} checkpoints, ${finished.length} words, ${big.asked} questions`);
+check('a full session: 2 checkpoints, every word finished once, 3 questions per new word', checkpoints === 2 && roundsSeen.join() === '0,1' && finished.length === 14 && new Set(finished).size === 14 && big.asked === 42, `${checkpoints} checkpoints, ${finished.length} words, ${big.asked} questions`);
+check('a checkpoint only continues from a checkpoint', L.nextRound(big) === big);
 check('an empty session is finished from the start', L.createLearn([], caps).phase === 'finished');
 check('answers after the end are ignored', L.answer(big, 'correct').state === big);
+// the state is plain data: a JSON round trip (what a refresh does) behaves exactly like the original
+const mid = run(s3, ['seen', 'seen', 'seen', 'wrong']).s;
+const thawed = JSON.parse(JSON.stringify(mid));
+eq('a serialised state continues identically', run(thawed, ['correct', 'correct', 'correct']).trail, run(mid, ['correct', 'correct', 'correct']).trail);
 
 console.log(`${pass}/${pass + fail} study-logic tests passed`);
 process.exit(fail ? 1 : 0);

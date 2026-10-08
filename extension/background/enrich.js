@@ -116,7 +116,7 @@ function buildPrompt(vocab, exposures) {
 }
 
 export async function callGemini({ apiKey, model }, prompt, { schema = RESPONSE_SCHEMA, temperature = 0.2 } = {}) {
-  if (!apiKey) throw Object.assign(new Error('Chưa cấu hình Gemini API key'), { code: 'NO_KEY' });
+  if (!apiKey) throw Object.assign(new Error('No Gemini API key is set'), { code: 'NO_KEY' });
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -138,17 +138,17 @@ export async function callGemini({ apiKey, model }, prompt, { schema = RESPONSE_
     throw Object.assign(new Error(`Gemini HTTP ${res.status}: ${message}`), { status: res.status });
   }
   let json;
-  try { json = JSON.parse(text); } catch (_) { throw new Error('Gemini trả về dữ liệu không phải JSON'); }
+  try { json = JSON.parse(text); } catch (_) { throw new Error('Gemini returned data that is not JSON'); }
   const parts = json.candidates?.[0]?.content?.parts || [];
   const out = parts.map((p) => p.text || '').join('').trim();
   if (!out) {
     const reason = json.candidates?.[0]?.finishReason || json.promptFeedback?.blockReason || 'empty';
-    throw new Error(`Gemini không trả về nội dung (${reason})`);
+    throw new Error(`Gemini returned no content (${reason})`);
   }
   try { return JSON.parse(out); } catch (_) {
     const m = out.match(/\{[\s\S]*\}/);
     if (m) return JSON.parse(m[0]);
-    throw new Error('Không parse được JSON từ Gemini');
+    throw new Error('Could not parse the JSON from Gemini');
   }
 }
 

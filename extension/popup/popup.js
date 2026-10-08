@@ -1,4 +1,4 @@
-import { send, onVocabularyChanged, getSettings, el, toast } from '../shared/rpc.js';
+import { send, onVocabularyChanged, getSettings, el, toast, plural } from '../shared/rpc.js';
 
 const $ = (id) => document.getElementById(id);
 let currentHost = '';
@@ -12,13 +12,15 @@ function openPage(path) {
 
 $('btn-vocab').addEventListener('click', () => openPage('vocabulary/vocabulary.html'));
 $('btn-options').addEventListener('click', () => chrome.runtime.openOptionsPage());
-$('link-key').addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
+// Real links (so they are focusable and announce as links), but a popup must open them in a tab.
+$('link-key').addEventListener('click', (e) => { e.preventDefault(); openPage('options/options.html#ai'); });
+$('link-mode').addEventListener('click', (e) => { e.preventDefault(); openPage('options/options.html#re-chuot'); });
 $('btn-run-ai').addEventListener('click', async () => {
   $('btn-run-ai').disabled = true;
   try {
     const r = await send('PROCESS_QUEUE', { max: 5 });
-    if (r.skipped === 'no-key') toast('Chưa có Gemini API key');
-    else toast(`AI xong ${r.done || 0} từ, còn ${r.remaining || 0}`);
+    if (r.skipped === 'no-key') toast('No Gemini key yet');
+    else toast(`AI explained ${plural(r.done || 0, 'word')}, ${r.remaining || 0} left`);
   } catch (err) { toast(err.message); }
   $('btn-run-ai').disabled = false;
   refresh();
@@ -38,9 +40,10 @@ $('search').addEventListener('input', () => {
 async function loadSite() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    currentHost = tab?.url ? new URL(tab.url).hostname : '';
+    const url = tab?.url ? new URL(tab.url) : null;
+    currentHost = url && /^https?:$/.test(url.protocol) ? url.hostname : '';
   } catch (_) { currentHost = ''; }
-  if (!currentHost || /^(chrome|edge|about|file):/.test(currentHost)) {
+  if (!currentHost) {
     $('site-row').classList.add('hidden');
     return;
   }
@@ -48,19 +51,31 @@ async function loadSite() {
   $('site-toggle').checked = !(settings.disabledSites || []).includes(currentHost);
 }
 
+// One plain sentence describing what hovering does right now, from the current settings.
 function hoverLabel() {
-  const m = { hover: 'rê chuột', alt: 'Alt + rê chuột', ctrl: 'Ctrl + rê chuột', off: 'hover tắt' };
-  const t = { sentence: 'câu', word: 'từ', both: 'câu + từ' };
-  if (settings.hoverMode === 'off') return m.off;
-  return `${m[settings.hoverMode] || ''} · ${t[settings.hoverTarget || 'sentence']}`;
+  if (settings.hoverMode === 'off') {
+    return settings.selectionMode === 'off'
+      ? 'Hover is off. Select text and right-click to look up a word'
+      : 'Hover is off. Select text to look up a word';
+  }
+  const how = { hover: 'Hover', alt: 'Hold Alt and hover', ctrl: 'Hold Ctrl and hover' }[settings.hoverMode] || 'Hover';
+  const what = {
+    sentence: 'to translate the sentence, hold Shift to look up a word',
+    both: 'to translate the sentence and the word, hold Shift for the word only',
+    word: 'to look up a word, hold Shift to translate the sentence',
+  }[settings.hoverTarget || 'sentence'];
+  return `${how} ${what}`;
 }
 
 async function renderStats() {
   const s = await send('STATS');
-  $('stat-today').textContent = s.today;
+  const today = el('span', { id: 'stat-today', text: String(s.today), hidden: !(s.today > 0) });
+  $('stat-line').replaceChildren(...(s.today > 0 ? ['You saved ', today, s.today === 1 ? ' word today' : ' words today'] : ['No words saved today yet', today]));
   $('stat-week').textContent = s.week;
   $('stat-total').textContent = s.total;
   $('stat-pending').textContent = s.pending;
+  $('stat-pending-label').textContent = `${s.pending === 1 ? 'word' : 'words'} waiting for an AI explanation`;
+  $('stat-pending-card').classList.toggle('hidden', !(s.pending > 0));
   $('btn-run-ai').classList.toggle('hidden', !(s.pending > 0 && settings.geminiApiKey));
 }
 
@@ -72,22 +87,35 @@ async function renderList() {
   let { items, total } = await send('LIST_VOCABULARY', { params });
   if (!q && !items.length) {
     ({ items, total } = await send('LIST_VOCABULARY', { params: { limit: 10 } }));
-    $('list-title').textContent = items.length ? 'Lưu gần đây' : 'Lưu hôm nay';
+    $('list-title').textContent = items.length ? 'Recently saved' : 'Saved today';
   } else {
-    $('list-title').textContent = q ? `Kết quả (${total})` : `Lưu hôm nay (${total})`;
+    $('list-title').textContent = q ? `${plural(total, 'word')} found` : 'Saved today';
   }
   const list = $('list');
   list.replaceChildren();
   for (const v of items) {
     const meaning = v.enrichment?.meaningInContext || v.enrichment?.meaningVi || v.quickMeaning || '';
-    list.appendChild(el('li', { onclick: () => openPage(`vocabulary/vocabulary.html#${v.id}`) }, [
-      el('span', { class: `dot ${v.enrichmentStatus}`, title: v.enrichmentStatus }),
-      el('span', { class: 'word', text: v.lemma }),
-      el('span', { class: 'meaning', text: meaning }),
+    const path = `vocabulary/vocabulary.html#${v.id}`;
+    list.appendChild(el('li', {}, [
+      el('a', { href: `../${path}`, onclick: (e) => { e.preventDefault(); openPage(path); } }, [
+        el('span', { class: 'word', lang: v.language === 'ja' ? 'ja' : 'en', text: v.lemma }),
+        el('span', { class: 'meaning', text: meaning }),
+        statusChip(v.enrichmentStatus),
+      ]),
     ]));
   }
+  $('empty').textContent = q
+    ? 'No saved words match.'
+    : 'No words yet. Hover over or select a word on a page, then press “Save word”.';
   $('empty').classList.toggle('hidden', items.length > 0);
   list.classList.toggle('hidden', items.length === 0);
+}
+
+// A chip only for words the AI has not explained yet; finished words carry no marker.
+function statusChip(status) {
+  if (status === 'pending' || status === 'processing') return el('span', { class: 'badge warn', text: 'AI pending' });
+  if (status === 'failed') return el('span', { class: 'badge danger', text: 'AI failed' });
+  return null;
 }
 
 async function renderSync() {
@@ -96,8 +124,11 @@ async function renderSync() {
     const line = $('sync-line');
     if (!st.configured && !st.hasUrl) { line.classList.add('hidden'); return; }
     line.classList.remove('hidden');
-    if (!st.configured) { line.textContent = 'Server: cần đăng nhập lại (Cài đặt)'; return; }
-    line.textContent = st.lastError ? `Server: lỗi (${st.lastError}) · ${st.pending} chờ gửi` : `Server: ${st.pending ? st.pending + ' chờ gửi' : 'đã đồng bộ'}${st.lastSyncAt ? ' · ' + new Date(st.lastSyncAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}`;
+    if (!st.configured) { line.textContent = 'Sync: sign in again in Settings'; return; }
+    const at = st.lastSyncAt ? ` at ${new Date(st.lastSyncAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : '';
+    line.textContent = st.lastError
+      ? `Sync error (${st.lastError}) · ${plural(st.pending, 'change')} waiting to send`
+      : st.pending ? `Sync: ${plural(st.pending, 'change')} waiting to send` : `Synced with your account${at}`;
   } catch (_) { /* ignore */ }
 }
 

@@ -18,6 +18,9 @@ const NAV: Array<{ path: string; label: string; icon: IconName }> = [
   { path: '/progress', label: 'Progress', icon: 'chart' },
   { path: '/settings', label: 'Settings', icon: 'settings' },
 ];
+// The name with "Lex" under a highlighter stroke: the mark of the whole product.
+export const Wordmark = () => <span className="wordmark">Read<span>Lex</span></span>;
+
 const AUTH_ROUTES = ['login', 'register', 'forgot', 'reset'];
 
 export function App() {
@@ -47,7 +50,7 @@ export function App() {
   else if (first === 'library' && second === 'sets' && third) page = <SetDetail date={third} />;
   else if (first === 'library' && second === 'my' && third) page = <CustomSetDetail key={third} id={third} />;
   else if (first === 'library' && second && second !== 'sets' && second !== 'my') page = <VocabDetail key={second} id={second} />;
-  else if (first === 'library') page = <Library tab={second === 'sets' ? 'sets' : second === 'my' ? 'my' : 'all'} />;
+  else if (first === 'library') page = <Library />;   // /library, /library/sets and /library/my are all the one page
   else if (first === 'progress') page = <Progress />;
   else page = <Today />;
 
@@ -58,15 +61,15 @@ export function App() {
       {chrome && (
         <header className="topbar">
           <div className="topbar-inner">
-            <a href="#/" className="topbar-brand"><img src="icons/icon-192.png" alt="" width={26} height={26} />ReadLex</a>
-            <nav className="topnav">{NAV.map((n) => <a key={n.path} href={`#${n.path}`} className={isActive(n.path) ? 'active' : ''}><Icon name={n.icon} size={18} />{n.label}</a>)}</nav>
+            <a href="#/" className="topbar-brand" aria-label="ReadLex, back to Today"><Wordmark /></a>
+            <nav className="topnav" aria-label="Main">{NAV.map((n) => <a key={n.path} href={`#${n.path}`} className={isActive(n.path) ? 'active' : ''} aria-current={isActive(n.path) ? 'page' : undefined}>{n.label}</a>)}</nav>
           </div>
         </header>
       )}
       <main className="page">{page}</main>
       {chrome && (
-        <nav className="bottom-nav">
-          {NAV.map((n) => <a key={n.path} href={`#${n.path}`} className={isActive(n.path) ? 'active' : ''}><Icon name={n.icon} size={22} /><span>{n.label}</span></a>)}
+        <nav className="bottom-nav" aria-label="Main">
+          {NAV.map((n) => <a key={n.path} href={`#${n.path}`} className={isActive(n.path) ? 'active' : ''} aria-current={isActive(n.path) ? 'page' : undefined}><i><Icon name={n.icon} size={21} /></i><span>{n.label}</span></a>)}
         </nav>
       )}
     </div>

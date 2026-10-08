@@ -17,9 +17,8 @@ export function SpeakButton({ onClick, label, size = 18 }: { onClick: () => void
   return <button type="button" className="icon-btn speak" onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={label} title={label}><Icon name="volume" size={size} /></button>;
 }
 
-// A direction only changes what is asked; when a card has no sentence, "context" falls back to the word.
+// A direction only changes what is asked; a card without a meaning can only show its word.
 export function effectiveDirection(card: CardContent, direction: FlashDirection): FlashDirection {
-  if (direction === 'context' && !card.front.cloze) return 'word';
   if (direction === 'meaning' && !cardMeaning(card)) return 'word';
   return direction;
 }
@@ -30,7 +29,7 @@ export function CardFront({ card, direction = 'word' }: { card: CardContent; dir
   const definition = card.back.definitionEn && card.back.definitionEn !== cardMeaning(card) ? maskWord(card.back.definitionEn, card) : '';
   return (
     <div className={`card-face front${ja ? ' ja' : ''}`}>
-      <div className="hint">{[langLabel(card), card.back.partOfSpeech, card.back.level].filter(Boolean).join(' · ')}</div>
+      <div className="hint">{[langLabel(card), card.back.partOfSpeech].filter(Boolean).join(' · ')}</div>
       <div className={`front-main dir-${dir}`}>
         {dir === 'word' && (
           <>
@@ -47,12 +46,6 @@ export function CardFront({ card, direction = 'word' }: { card: CardContent; dir
             <div className="front-label">What's the word?</div>
             <div className="front-meaning">{cardMeaning(card)}</div>
             {definition && <div className="muted front-definition">{definition}</div>}
-          </>
-        )}
-        {dir === 'context' && (
-          <>
-            <div className="front-label">Which word is missing?</div>
-            <p className="cloze">{card.front.cloze}</p>
           </>
         )}
       </div>
@@ -120,7 +113,6 @@ export function CardBack({ card, compact = false }: { card: CardContent; compact
           {b.wordFamily.length > 0 && <div className="block"><div className="block-label">Word family</div><div className="chips">{b.wordFamily.map((c) => <span key={c}>{c}</span>)}</div></div>}
         </details>
       )}
-      {!compact && <div className="back-foot"><span className="tap-hint"><Icon name="flip" size={13} />Tap to flip back</span></div>}
       {(card.enrichmentStatus === 'pending' || card.enrichmentStatus === 'processing') && !emptyState && <div className="pending-note"><Icon name="sparkles" size={13} />AI explanation is still on its way.</div>}
     </div>
   );

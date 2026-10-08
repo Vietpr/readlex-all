@@ -1,36 +1,36 @@
-// Learn: mixed practice driven by the engine in learn.ts. The UI only renders the current step and
-// reports results; one FSRS review per word is sent when the word finishes its climb.
+// Learn: rounds of a few words, each round in three phases (Meet, Choose, Write), driven by the
+// engine in learn.ts. The UI only renders the current step and reports results; one FSRS review per
+// word is sent when the word passes its last phase.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { clearSession, loadProgress, saveProgress, type Session } from '../session';
 import { navigate } from '../router';
-import { speechAvailable } from '../speech';
 import { Icon, type IconName } from '../components/Icon';
-import { RATING_LABEL, type CardContent } from '../types';
+import { MODE_LABEL, RATING_LABEL, type CardContent } from '../types';
 import { buildChoices, type Distractor } from './answers';
-import { answer, createLearn, currentStep, currentWord, nextRound, progress, ratingFor, type LearnState, type LearnWord, type Step, type StepResult } from './learn';
+import { PHASES, answer, createLearn, currentStep, currentWord, nextRound, phaseCount, progress, ratingFor, type LearnState, type LearnWord, type Step, type StepResult } from './learn';
 import { Flashcard } from './Flashcard';
-import { ChoiceExercise, ListenExercise, WriteExercise, type ExerciseResult } from './exercises';
+import { ChoiceExercise, WriteExercise, type ExerciseResult } from './exercises';
 import { PracticeNote, SessionHeader, recordReview } from './SessionChrome';
 import { launch } from '../components/StudyPicker';
+import { SessionExit } from '../components/NextStep';
 
-// The rungs a word climbs, shown to the learner so the first meeting has a visible destination.
-interface SavedLearn { kind: string; words: Array<Omit<LearnWord, 'card'> & { cardId: string }>; rounds: number[][]; round: number; queue: number[]; phase: LearnState['phase']; asked: number }
+type SavedWord = Omit<LearnWord, 'card'> & { cardId: string };
+interface SavedLearn { kind: 'learn'; state: Omit<LearnState, 'words'> & { words: SavedWord[] } }
 
-const STEP_META: Record<Step, { label: string; icon: IconName; coming: string }> = {
-  study: { label: 'Meet', icon: 'book', coming: '' },
-  choice: { label: 'Choose', icon: 'listChecks', coming: 'pick the meaning' },
-  context: { label: 'Context', icon: 'quote', coming: 'fill in the sentence' },
-  write: { label: 'Write', icon: 'keyboard', coming: 'write it from memory' },
-  listen: { label: 'Listen', icon: 'headphones', coming: 'listen and type' },
+const PHASE_META: Record<Step, { label: string; icon: IconName }> = {
+  meet: { label: 'Meet', icon: 'book' },
+  choose: { label: 'Choose', icon: 'listChecks' },
+  write: { label: 'Write', icon: 'keyboard' },
 };
 
-function StepLadder({ ladder, pos }: { ladder: Step[]; pos: number }) {
-  if (ladder.length < 2) return null;
+// The three phases of the round: ticked once the whole group has passed them, the current one highlighted.
+function PhaseBar({ step }: { step: Step }) {
+  const at = PHASES.indexOf(step);
   return (
-    <ol className="step-ladder" aria-label="Steps for this word">
-      {ladder.map((s, i) => (
-        <li key={s} className={i < pos ? 'done' : i === pos ? 'now' : ''} aria-current={i === pos ? 'step' : undefined}>
-          <Icon name={i < pos ? 'check' : STEP_META[s].icon} size={13} /><span>{STEP_META[s].label}</span>
+    <ol className="phase-bar" aria-label="Phases of this round">
+      {PHASES.map((p, i) => (
+        <li key={p} className={i < at ? 'done' : i === at ? 'now' : ''} aria-current={i === at ? 'step' : undefined}>
+          <Icon name={i < at ? 'check' : PHASE_META[p].icon} size={13} /><span>{PHASE_META[p].label}</span>
         </li>
       ))}
     </ol>
@@ -38,21 +38,18 @@ function StepLadder({ ladder, pos }: { ladder: Step[]; pos: number }) {
 }
 
 export function LearnSession({ session, pool }: { session: Session; pool: Distractor[] }) {
-  const caps = useMemo(() => ({
-    canChoose: (card: CardContent, what: 'word' | 'meaning') => buildChoices(card, pool, what).length >= 2,
-    listen: speechAvailable() || session.cards.some((c) => !!c.audio && !c.audio.includes('translate_tts')),
-  }), [pool]);
-  // The engine state is plain data, so a refresh can carry a half-climbed word across. Only the
+  const caps = useMemo(() => ({ canChoose: (card: CardContent, what: 'word' | 'meaning') => buildChoices(card, pool, what).length >= 2 }), [pool]);
+  // The engine state is plain data, so a refresh can carry a half-finished round across. Only the
   // card ids are stored; the cards themselves come back from the session.
   const [state, setState] = useState<LearnState>(() => {
     const fresh = createLearn(session.cards, caps);
     const saved = loadProgress<SavedLearn>();
-    if (!saved || saved.kind !== 'learn' || saved.words.length !== fresh.words.length) return fresh;
+    if (!saved || saved.kind !== 'learn' || !saved.state || saved.state.words.length !== fresh.words.length) return fresh;
     try {
-      const byId = new Map(fresh.words.map((w) => [w.card.cardId, w]));
-      const words = saved.words.map((w) => { const base = byId.get(w.cardId); return base ? { ...base, ...w, card: base.card } : null; });
+      const byId = new Map(fresh.words.map((w) => [w.card.cardId, w.card]));
+      const words = saved.state.words.map(({ cardId, ...w }) => { const card = byId.get(cardId); return card ? { ...w, card } : null; });
       if (words.some((w) => !w)) return fresh;
-      return { ...fresh, words: words as LearnWord[], rounds: saved.rounds, round: saved.round, queue: saved.queue, phase: saved.phase, asked: saved.asked };
+      return { ...saved.state, words: words as LearnWord[] };
     } catch { return fresh; }
   });
   const [finished, setFinished] = useState<LearnWord[]>(() => state.words.filter((w) => w.done));
@@ -62,7 +59,7 @@ export function LearnSession({ session, pool }: { session: Session; pool: Distra
   const shownAt = useRef(Date.now());
   useEffect(() => { shownAt.current = Date.now(); }, [turn]);
   useEffect(() => {
-    saveProgress({ kind: 'learn', words: state.words.map(({ card, ...w }) => ({ ...w, cardId: card.cardId })), rounds: state.rounds, round: state.round, queue: state.queue, phase: state.phase, asked: state.asked });
+    saveProgress({ kind: 'learn', state: { ...state, words: state.words.map(({ card, ...w }) => ({ ...w, cardId: card.cardId })) } } satisfies SavedLearn);
   }, [state]);
 
   const exit = () => { clearSession(); navigate(session.returnTo || '/'); };
@@ -95,11 +92,11 @@ export function LearnSession({ session, pool }: { session: Session; pool: Distra
         {shaky.length > 0 && (
           <div className="card summary-list"><div className="block-label">Worth another look</div>
             <ul>{shaky.slice(0, 8).map((w) => <li key={w.card.cardId}><b>{w.card.lemma}</b><span className="muted small">{w.mistakes} {w.mistakes === 1 ? 'miss' : 'misses'} · rated {RATING_LABEL[ratingFor(w) || 1]}</span></li>)}</ul>
-            <button className="btn block" onClick={() => launch({ cards: shaky.map((w) => ({ ...w.card, schedule: { ...w.card.schedule, state: w.card.schedule.state || 1, due: Date.now() + 60000 } })), title: `${shaky.length} to practise`, returnTo: session.returnTo || '/' }, 'learn')}>Practise these {shaky.length} {shaky.length === 1 ? 'word' : 'words'}</button>
+            <button className="btn block" onClick={() => launch({ cards: shaky.map((w) => ({ ...w.card, schedule: { ...w.card.schedule, state: w.card.schedule.state || 1, due: Date.now() + 60000 } })), title: `Words to revisit · ${shaky.length} ${shaky.length === 1 ? 'word' : 'words'}`, returnTo: session.returnTo || '/' }, 'learn')}>{shaky.length === 1 ? 'Practice this word again' : `Practice these ${shaky.length} words again`}</button>
           </div>
         )}
         {error && <p className="error">{error}</p>}
-        <button className="btn primary block" onClick={exit}>{session.returnTo === '/' ? 'Back to Today' : 'Done'}</button>
+        <SessionExit returnTo={session.returnTo || '/'} onExit={exit} />
       </div>
     );
   }
@@ -108,7 +105,7 @@ export function LearnSession({ session, pool }: { session: Session; pool: Distra
     const roundWords = state.rounds[state.round].map((i) => state.words[i]);
     return (
       <div className="review">
-        <SessionHeader onClose={exit} progress={progress(state)} counter={`${Math.round(progress(state) * 100)}%`} label={`Learn · ${session.title}`} />
+        <SessionHeader onClose={exit} progress={progress(state)} counter={`${Math.round(progress(state) * 100)}%`} label={`${MODE_LABEL.learn} · ${session.title}`} />
         <div className="card checkpoint">
           <div className="eyebrow"><Icon name="zap" size={16} />Round {state.round + 1} of {state.rounds.length} complete</div>
           <ul>{roundWords.map((w) => <li key={w.card.cardId}><Icon name="check" size={16} /><b>{w.card.lemma}</b><span className="muted">{w.card.back.meaning}</span></li>)}</ul>
@@ -120,23 +117,22 @@ export function LearnSession({ session, pool }: { session: Session; pool: Distra
 
   if (!word || !step) return null;
   const card = word.card;
+  const count = phaseCount(state);
   return (
     <div className="review">
-      <SessionHeader onClose={exit} progress={progress(state)} counter={`${state.words.filter((w) => w.done).length}/${state.words.length}`} label={`Learn · ${session.title}`} />
-      <StepLadder ladder={word.ladder} pos={word.pos} />
-      {step === 'study' && <StudyStep key={turn} card={card} next={word.ladder[word.pos + 1] || null} straightBack={state.queue.length === 1} onDone={() => report('seen')} />}
-      {step === 'choice' && <ChoiceExercise key={turn} card={card} pool={pool} kind="pickMeaning" onDone={fromExercise} />}
-      {step === 'context' && <ChoiceExercise key={turn} card={card} pool={pool} kind="context" onDone={fromExercise} />}
+      <SessionHeader onClose={exit} progress={progress(state)} counter={`${PHASE_META[step].label} · ${Math.min(count.done + 1, count.total)}/${count.total}`} label={`${MODE_LABEL.learn} · ${session.title}`} />
+      <PhaseBar step={step} />
+      {step === 'meet' && <MeetStep key={turn} card={card} onDone={() => report('seen')} />}
+      {step === 'choose' && <ChoiceExercise key={turn} card={card} pool={pool} kind={word.chooseKind === 'context' ? 'context' : 'pickMeaning'} onDone={fromExercise} />}
       {step === 'write' && <WriteExercise key={turn} card={card} onDone={fromExercise} />}
-      {step === 'listen' && <ListenExercise key={turn} card={card} onDone={fromExercise} />}
-      {word.pos === word.start && <PracticeNote card={card} />}
+      {word.pos === 0 && <PracticeNote card={card} />}
       {error && <p className="error">{error}</p>}
     </div>
   );
 }
 
-// The first meeting with a word: guess, flip, then move on to be tested. Nothing is graded here.
-function StudyStep({ card, next, straightBack, onDone }: { card: CardContent; next: Step | null; straightBack: boolean; onDone: () => void }) {
+// The first meeting with a word: guess, flip, then move on. Nothing is graded here.
+function MeetStep({ card, onDone }: { card: CardContent; onDone: () => void }) {
   const [seen, setSeen] = useState(false);
   useEffect(() => {
     if (!seen) return;
@@ -148,8 +144,7 @@ function StudyStep({ card, next, straightBack, onDone }: { card: CardContent; ne
     <>
       <Flashcard card={card} direction="word" enterFlips={false} onSeen={() => setSeen(true)} />
       <div className="exercise-foot steady">
-        {/* other words are interleaved, so only promise "next" when this word really is the one coming back */}
-        {seen ? <button className="btn primary block" onClick={onDone}>{!next ? 'Got it — done with this word' : straightBack ? `Next: ${STEP_META[next].coming}` : `Got it — later: ${STEP_META[next].coming}`}</button>
+        {seen ? <button className="btn primary block" onClick={onDone}>Got it</button>
           : <p className="muted small center flip-help">Guess the meaning, then flip the card</p>}
       </div>
     </>

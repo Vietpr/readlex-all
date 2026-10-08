@@ -1,12 +1,12 @@
 {
   "name": "ReadLex",
   "short_name": "ReadLex",
-  "description": "Ôn từ vựng bạn đã gặp khi đọc báo",
+  "description": "Review the words you met while reading",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f7f7fb",
-  "theme_color": "#4f46e5",
+  "background_color": "#f3f4ef",
+  "theme_color": "#f3f4ef",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }

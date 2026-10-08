@@ -1,17 +1,19 @@
 import { clearSession } from './session';
 import type { CardContent, CustomSet, DailySet, Definition, DifficultItem, Exposure, FlashDirection, Rating, ReviewResult, StatsResponse, TodayResponse, Vocabulary } from './types';
 
-export interface Config { apiUrl: string; token: string; email: string; language: '' | 'en' | 'ja'; accent: 'en-US' | 'en-GB' | 'en-AU'; speechRate: number; autoPlay: boolean; voiceEn: string; flashDirection: FlashDirection; contextInput: 'choose' | 'type' }
+export interface Config { apiUrl: string; token: string; email: string; language: '' | 'en' | 'ja'; accent: 'en-US' | 'en-GB' | 'en-AU'; speechRate: number; autoPlay: boolean; voiceEn: string; flashDirection: FlashDirection }
 const CONFIG_KEY = 'readlex.config';
 const QUEUE_KEY = 'readlex.reviewQueue';
 // Baked in at build time (VITE_API_URL); when set, users never have to type the server address.
 export const DEFAULT_API_URL: string = (import.meta.env.VITE_API_URL as string | undefined) || (import.meta.env.DEV ? 'http://localhost:8787' : '');
 
 export function getConfig(): Config {
-  const base: Config = { apiUrl: DEFAULT_API_URL, token: '', email: '', language: '', accent: 'en-US', speechRate: 1, autoPlay: false, voiceEn: '', flashDirection: 'word', contextInput: 'choose' };
+  const base: Config = { apiUrl: DEFAULT_API_URL, token: '', email: '', language: '', accent: 'en-US', speechRate: 1, autoPlay: false, voiceEn: '', flashDirection: 'word' };
   try {
     const stored = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}') as Partial<Config>;
-    return { ...base, ...stored, apiUrl: stored.apiUrl || DEFAULT_API_URL };
+    // a direction saved by an older build ("context") falls back to the word side
+    const flashDirection: FlashDirection = stored.flashDirection === 'meaning' ? 'meaning' : 'word';
+    return { ...base, ...stored, apiUrl: stored.apiUrl || DEFAULT_API_URL, flashDirection };
   } catch { return base; }
 }
 export function setConfig(patch: Partial<Config>): Config {

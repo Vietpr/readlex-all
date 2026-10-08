@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { clearSession, type Session } from '../session';
 import { navigate } from '../router';
 import { Icon } from '../components/Icon';
-import type { CardContent } from '../types';
+import { MODE_LABEL, type CardContent } from '../types';
 import { buildChoices, cardMeaning, shuffle, type Distractor } from './answers';
 import { SessionHeader } from './SessionChrome';
 import { launch } from '../components/StudyPicker';
@@ -106,7 +106,7 @@ export function SprintGame({ session, pool }: { session: Session; pool: Distract
     advanceTimer.current = setTimeout(() => { setPicked(null); setQIndex((n) => n + 1); }, ok ? 420 : 1200);
   };
 
-  const header = <SessionHeader onClose={exit} label={`Recall sprint · ${session.title}`} counter={phase === 'playing' ? <span className="sprint-clock"><Icon name="timer" size={15} />{Math.ceil(remaining / 1000)}s</span> : undefined} />;
+  const header = <SessionHeader onClose={exit} label={`${MODE_LABEL.sprint} · ${session.title}`} counter={phase === 'playing' ? <span className="sprint-clock"><Icon name="timer" size={15} />{Math.ceil(remaining / 1000)}s</span> : undefined} />;
 
   if (playable.length < 1) {
     return <div className="review">{header}<div className="card match-intro"><h1>Recall sprint needs more words</h1><p className="muted">Choose a set with at least two words that already have a meaning.</p><button className="btn primary block" onClick={exit}>Back</button></div></div>;
@@ -141,7 +141,7 @@ export function SprintGame({ session, pool }: { session: Session; pool: Distract
         {missed.length > 0 && (
           <div className="card summary-list"><div className="block-label">Review these next</div>
             <ul>{missed.slice(0, 6).map((c) => <li key={c.cardId}><b>{c.lemma}</b><span className="muted small">{cardMeaning(c)}</span></li>)}</ul>
-            <button className="btn block" onClick={() => launch({ cards: missed, title: `${missed.length} to practise`, returnTo: session.returnTo || '/' }, 'learn')}>Practise these {missed.length} {missed.length === 1 ? 'word' : 'words'}</button>
+            <button className="btn block" onClick={() => launch({ cards: missed, title: `Words to revisit · ${missed.length} ${missed.length === 1 ? 'word' : 'words'}`, returnTo: session.returnTo || '/' }, 'learn')}>{missed.length === 1 ? 'Practice this word again' : `Practice these ${missed.length} words again`}</button>
           </div>
         )}
         <div className="row summary-actions"><button className="btn primary grow" onClick={start}>Play again</button><button className="btn grow" onClick={exit}>Done</button></div>

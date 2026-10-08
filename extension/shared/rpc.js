@@ -4,8 +4,8 @@ export function send(type, payload = {}) {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type, ...payload }, (resp) => {
       if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-      if (!resp) return reject(new Error('Không nhận được phản hồi từ background'));
-      if (!resp.ok) return reject(new Error(resp.error || 'Lỗi không xác định'));
+      if (!resp) return reject(new Error('No response from the extension background'));
+      if (!resp.ok) return reject(new Error(resp.error || 'Unknown error'));
       resolve(resp.data);
     });
   });
@@ -25,25 +25,25 @@ export async function getSettings() {
 export function formatDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function formatDateTime(ts) {
   if (!ts) return '';
   const d = new Date(ts);
-  return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 export function relativeTime(ts) {
   if (!ts) return '';
   const diff = Date.now() - ts;
   const m = Math.round(diff / 60000);
-  if (m < 1) return 'vừa xong';
-  if (m < 60) return `${m} phút trước`;
+  if (m < 1) return 'just now';
+  if (m < 60) return `${plural(m, 'minute')} ago`;
   const h = Math.round(m / 60);
-  if (h < 24) return `${h} giờ trước`;
+  if (h < 24) return `${plural(h, 'hour')} ago`;
   const d = Math.round(h / 24);
-  if (d < 7) return `${d} ngày trước`;
+  if (d < 7) return `${plural(d, 'day')} ago`;
   return formatDate(ts);
 }
 
@@ -69,18 +69,45 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+// Inline stroke icons (24px grid, currentColor) for markup built in JS.
+const ICONS = {
+  check: ['M5 12.5l4.5 4.5L19 7.5'],
+  plus: ['M12 5v14', 'M5 12h14'],
+  audio: ['M11 5 6 9H3v6h3l5 4z', 'M15.5 8.5a5 5 0 0 1 0 7', 'M18.5 5.5a9 9 0 0 1 0 13'],
+  trash: ['M4 7h16', 'M9 7V4h6v3', 'M6.5 7l1 13h9l1-13'],
+  sparkle: ['M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', 'M19 16v4', 'M17 18h4'],
+  close: ['M6 6l12 12', 'M18 6 6 18'],
+};
+export function icon(name, size = 18, strokeWidth = 2) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  const attrs = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': strokeWidth, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+  for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, v);
+  for (const d of ICONS[name] || []) {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d);
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
 export function stars(n) {
   const v = Math.max(0, Math.min(5, Number(n) || 0));
   return '★'.repeat(v) + '☆'.repeat(5 - v);
 }
 
-export const STATUS_LABEL = { new: 'Mới', learning: 'Đang học', known: 'Đã biết', ignored: 'Bỏ qua' };
-export const ENRICH_LABEL = { pending: 'Chờ AI', processing: 'AI đang xử lý', done: 'AI xong', failed: 'AI lỗi', skipped: 'Bỏ qua AI' };
+export const STATUS_LABEL = { new: 'New', learning: 'Learning', known: 'Known', ignored: 'Ignored' };
+export const ENRICH_LABEL = { pending: 'Waiting for AI', processing: 'AI is working', done: 'Explained by AI', failed: 'AI failed', skipped: 'AI skipped' };
+
+// "1 word" / "2 words"; pass `many` for irregular plurals.
+export function plural(n, one, many = `${one}s`) {
+  return `${n} ${Number(n) === 1 ? one : many}`;
+}
 
 let toastTimer = null;
 export function toast(text, ms = 2500) {
   let t = document.querySelector('.toast');
-  if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
   t.textContent = text;
   t.classList.remove('hidden');
   clearTimeout(toastTimer);

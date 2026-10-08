@@ -10,6 +10,7 @@ const P: Record<string, ReactNode> = {
   x: <><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>,
   check: <path d="M20 6 9 17l-5-5" />,
   chevronRight: <path d="m9 18 6-6-6-6" />,
+  arrowRight: <><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>,
   arrowLeft: <><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></>,
   layers: <><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></>,
   listChecks: <><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" /></>,

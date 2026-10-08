@@ -12,6 +12,7 @@ const WEB = path.join(ROOT, 'web');
 const API_PORT = 8791;
 const WEB_PORT = 4174;
 const API = `http://127.0.0.1:${API_PORT}`;
+const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 let TOKEN = '';
 const results = [];
 const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + String(detail).slice(0, 200) : ''}`); };
@@ -30,8 +31,14 @@ const puppeteer = await loadPuppeteer();
 const STATE = path.join(BACKEND, '.wrangler', 'test-web');
 fs.rmSync(STATE, { recursive: true, force: true });
 execSync(`npx wrangler d1 migrations apply readlex --local --persist-to "${STATE}"`, { cwd: BACKEND, stdio: 'pipe' });
-const api = spawn('npx', ['wrangler', 'dev', '--port', String(API_PORT), '--ip', '127.0.0.1', '--persist-to', STATE, '--var', 'GEMINI_MOCK:1', '--log-level', 'warn'], { cwd: BACKEND, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
-const web = spawn('npx', ['vite', 'preview', '--port', String(WEB_PORT), '--host', '127.0.0.1', '--strictPort'], { cwd: WEB, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+const childOptions = (cwd) => ({
+  cwd,
+  stdio: ['ignore', 'pipe', 'pipe'],
+  detached: process.platform !== 'win32',
+  shell: process.platform === 'win32',
+});
+const api = spawn(NPX, ['wrangler', 'dev', '--port', String(API_PORT), '--ip', '127.0.0.1', '--persist-to', STATE, '--var', 'GEMINI_MOCK:1', '--log-level', 'warn'], childOptions(BACKEND));
+const web = spawn(NPX, ['vite', 'preview', '--port', String(WEB_PORT), '--host', '127.0.0.1', '--strictPort'], childOptions(WEB));
 let logs = '';
 for (const p of [api, web]) { p.stdout.on('data', (d) => { logs += d; }); p.stderr.on('data', (d) => { logs += d; }); }
 
@@ -46,6 +53,14 @@ const clickCentered = async (page, sel) => { await page.$eval(sel, (el) => el.sc
 const call = (method, p, body) => fetch(API + p, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` }, body: body ? JSON.stringify(body) : undefined }).then((r) => r.json());
 
 let browser = null;
+const stopProcessTree = (child, force = false) => {
+  if (!child?.pid) return;
+  if (process.platform === 'win32') {
+    try { execSync(`taskkill /PID ${child.pid} /T${force ? ' /F' : ''}`, { stdio: 'ignore' }); } catch { /* already gone */ }
+    return;
+  }
+  try { process.kill(-child.pid, force ? 'SIGKILL' : 'SIGTERM'); } catch { try { child.kill(force ? 'SIGKILL' : 'SIGTERM'); } catch { /* already gone */ } }
+};
 try {
   check('backend up', await waitFor(`${API}/`));
   check('web preview up', await waitFor(`http://127.0.0.1:${WEB_PORT}/`));
@@ -93,7 +108,7 @@ try {
   await pws[1].type('webpass123');
   await page.click('button.btn.primary.block');
   await sleep(1500);
-  check('a brand-new account gets a first-run card, not "all caught up"', /Nothing to study yet/.test(await page.$eval('[data-testid="first-run"]', (e) => e.textContent).catch(() => '')) && (await page.$('[data-testid="review-card"]')) === null, await page.$eval('.page', (e) => e.textContent.replace(/\s+/g, ' ').slice(0, 120)).catch(() => ''));
+  check('a brand-new account gets a first-run card, not an empty plan or "all done"', /Nothing to study yet/.test(await page.$eval('[data-testid="first-run"]', (e) => e.textContent).catch(() => '')) && (await page.$('[data-testid="review-card"]')) === null && (await page.$('[data-testid="plan"]')) === null && (await page.$('[data-testid="all-done"]')) === null, await page.$eval('.page', (e) => e.textContent.replace(/\s+/g, ' ').slice(0, 120)).catch(() => ''));
   check('register succeeds and goes to Today (with top bar + nav)', /Good (morning|afternoon|evening)/.test(await page.$eval('h1', (h) => h.textContent)) && (await page.$('.topbar')) !== null && (await page.$('.bottom-nav')) !== null, (await page.$eval('h1', (h) => h.textContent)) + ' | ' + (await page.$eval('.auth-status', (e) => e.textContent).catch(() => '')));
   // this browser account has no words yet: log out, log in as the seeded account
   await page.goto(`http://127.0.0.1:${WEB_PORT}/#/settings`, { waitUntil: 'load' });
@@ -133,35 +148,78 @@ try {
   const text = async (sel) => (await page.$eval(sel, (e) => e.textContent).catch(() => '')).replace(/\s+/g, ' ');
   const navLabels = await page.$$eval('.bottom-nav a span', (els) => els.map((e) => e.textContent));
   check('English navigation with SVG icons', JSON.stringify(navLabels) === JSON.stringify(['Today', 'Library', 'Progress', 'Settings']) && (await page.$$('.bottom-nav svg')).length === 4, JSON.stringify(navLabels));
-  check('Today: nothing due yet, 4 words saved today', /all caught up/.test(await text('[data-testid="review-card"]')) && /4 words saved/.test(await text('[data-testid="saved-card"]')), await text('[data-testid="saved-card"]'));
-  const quick = await page.$$eval('[data-testid="saved-card"] .quick-modes button', (els) => els.map((e) => e.textContent));
-  check('Today: one default action plus quick links instead of a wall of mode buttons', (await page.$('.tile')) === null && /Start learning/.test(await text('[data-testid="saved-card"] .btn.primary')) && JSON.stringify(quick) === JSON.stringify(['Flashcards', 'Write', 'Listen', 'More modes']), JSON.stringify(quick));
+  const uiText = {};   // what each page says, kept for the "no Vietnamese left" check at the end
+  uiText.today = await page.evaluate(() => document.body.innerText);
+  // on pages that also show the learner's own (Vietnamese) meanings, only the labels of controls and headings are kept
+  const uiLabels = () => page.$$eval('.btn, .tabs a, h2, label, .segmented button, .back-link, .block-label, .state-pill', (els) => els.map((e) => e.textContent).join(' | '));
+  const hasClass = (sel, cls) => page.$eval(sel, (e, cls) => e.classList.contains(cls), cls).catch(() => false);
+  // nothing is due and nothing was reviewed, so the plan has no review step at all: the 4 saved words are step 1
+  check('Today: nothing due yet, 4 words saved today', (await page.$('[data-testid="review-card"]')) === null && (await page.$('[data-testid="all-done"]')) === null && (await page.$$('[data-testid="plan"] .plan-step')).length === 1
+    && (await hasClass('[data-testid="saved-card"]', 'is-next')) && /Learn 4 new words saved today/.test(await text('[data-testid="saved-card"] .plan-title')) && /4 ?words saved/.test(await text('[data-testid="today-stats"]')) && /0 ?reviews/.test(await text('[data-testid="today-stats"]')),
+    (await text('[data-testid="saved-card"]')) + ' | ' + (await text('[data-testid="today-stats"]')));
+  const planButtons = await page.$$eval('[data-testid="plan"] button', (els) => els.map((e) => e.textContent));
+  check('Today: one default action plus a single "another way" link instead of a wall of mode buttons', (await page.$('.tile')) === null && (await page.$('[data-testid="plan"] .quick-modes')) === null && (await page.$$('[data-testid="plan"] .btn.primary')).length === 1
+    && /^Start learning$/.test((await text('[data-testid="saved-card"] .btn.primary')).trim()) && JSON.stringify(planButtons) === JSON.stringify(['Start learning', 'Study another way']), JSON.stringify(planButtons));
+  const chips = await page.$$eval('[data-testid="saved-card"] .today-word-preview a', (els) => els.map((e) => e.textContent));
+  check('Today: the next step previews its words', chips.length === 4 && chips.includes('sustain') && chips.includes('買う'), JSON.stringify(chips));
+  check('Today: the week strip has seven days and today is not ticked before any review', (await page.$$('[data-testid="week-card"] .week-strip li')).length === 7 && (await page.$$('[data-testid="week-card"] .week-strip li.today')).length === 1 && (await page.$('[data-testid="week-card"] .week-strip li.studied')) === null, await text('[data-testid="week-card"]'));
 
   // study mode picker
   await page.click('[data-testid="saved-card"] .more-modes');
   await sleep(400);
   const modes = await page.$$eval('[data-mode] .mode-title b', (els) => els.map((e) => e.textContent));
   const groups = await page.$$eval('.mode-section-label', (els) => els.map((e) => e.textContent));
-  check('mode picker: Learn on top, then Practice and Games groups; games marked practice-only', (await page.$('.sheet[role="dialog"][aria-modal="true"]')) !== null && JSON.stringify(modes) === JSON.stringify(['Learn', 'Flashcards', 'Write', 'Listen', 'Quick quiz', 'In context', 'Match', 'Recall sprint']) && JSON.stringify(groups) === JSON.stringify(['Practice', 'Games']) && /never change a card's review schedule/.test(await text('.sheet-note')) && !/words · \d+ words/.test(await text('.sheet-head')), JSON.stringify(modes) + ' ' + (await text('.sheet-head')));
+  check('mode picker: Learn on top, then three practice modes and two games (no quiz or context mode); games marked practice-only', (await page.$('.sheet[role="dialog"][aria-modal="true"]')) !== null && JSON.stringify(modes) === JSON.stringify(['Learn', 'Flashcards', 'Write', 'Listen', 'Match', 'Recall sprint']) && JSON.stringify(groups) === JSON.stringify(['Practice one skill', 'Games']) && /never change a card's review schedule/.test(await text('.sheet-note')) && /· 4 words/.test(await text('.sheet-head')) && !/\d+ words? · \d+ words?/.test(await text('.sheet-head')), JSON.stringify(modes) + ' ' + (await text('.sheet-head')));
   await page.keyboard.press('Escape');
   await sleep(300);
   check('Escape closes the picker', (await page.$('.sheet')) === null);
+
+  // ---- the end of a session: what is still open today, and a way to carry straight on ----
+  // The summary first asks the server for today's plan, then shows either the next open step or the way back.
+  const sessionExit = async () => {
+    await page.waitForFunction(() => !!document.querySelector('.summary .next-step, .summary > .btn.primary'), { timeout: 15000 });
+    return (await page.$('.summary .next-step')) ? 'next' : 'back';
+  };
+  // Listen can be skipped card by card, which ends a session without sending a single review.
+  const skipThroughListen = async (n) => {
+    await page.click('[data-testid="saved-card"] .more-modes');
+    await sleep(400);
+    await page.click('[data-mode="listen"]');
+    await page.waitForSelector('.skip-listen', { timeout: 15000 });
+    for (let i = 0; i < n; i++) { await clickCentered(page, '.skip-listen'); await sleep(350); }
+    await page.waitForSelector('.summary', { timeout: 15000 });
+  };
+  await skipThroughListen(4);
+  const exitOpen = await sessionExit();
+  check('a session that leaves a step open ends by offering that step, with a way to postpone it', exitOpen === 'next' && /Up next/.test(await text('.next-step')) && /Learn 4 new words saved today/.test(await text('.next-step .plan-title')) && /^Start learning$/.test((await text('.next-step .btn.primary')).trim())
+    && /^Later, back to Today$/.test((await text('.next-step .text-btn')).trim()) && (await page.$('.summary > .btn.primary')) === null && (await call('GET', '/api/v1/stats')).totals.reviews === 0, await text('.summary'));
+  check('a session in which every card was skipped says so instead of celebrating', /No more cards/.test(await text('.summary h1')) && /You skipped all 4, so nothing was rated/.test(await text('.summary')) && !/remembered/.test(await text('.summary')), await text('.summary'));
+  await clickCentered(page, '.next-step .text-btn');
+  await sleep(900);
+  check('"Later" goes back to Today and the step is still the next one', /#\/$/.test(page.url()) && (await hasClass('[data-testid="saved-card"]', 'is-next')) && (await page.$('.summary')) === null, page.url());
 
   // ---- flashcards: a real two-sided card ----
   const isBack = () => page.$eval('.flip-card', (e) => e.classList.contains('is-back'));
   const cardPoint = async () => { const b = await (await page.$('.flip-card')).boundingBox(); return { x: b.x + 40, y: b.y + 70 }; };
   const tapCard = async () => { const c = await cardPoint(); await page.mouse.click(c.x, c.y); };
-  await page.click('[data-testid="saved-card"] .quick-modes button');   // Flashcards
+  await page.click('[data-testid="saved-card"] .more-modes');           // Today has no quick links any more: Flashcards is in the picker
+  await sleep(400);
+  await page.click('[data-mode="flash"]');
   await sleep(700);
   const frontWord = (await text('.front-word')).trim();
   check('front is the word, its IPA, a speak button and "Tap to flip"', ['sustain', 'resilient', 'curb', '買う'].includes(frontWord) && /Tap to flip/.test(await text('.front-face')) && /\/mɒk\/|English · /.test(await text('.front-face')) && !/nghĩa mock/.test(await text('.front-face')) && (await page.$('.front-face .icon-btn.speak')) !== null && !(await isBack()) && (await page.$('.ratings')) === null, frontWord);
   await page.click('.flip-card');                                       // dead centre of the card = the word, not the speaker
   await sleep(400);
   const backText = await text('.back-face');
-  const ratingLabels = await page.$$eval('.ratings button', (els) => els.map((e) => e.childNodes[0].textContent));
+  // a rating button is <b>label</b><span>what it means</span><small>when the card comes back, spelled out ("in 10 min")</small>
+  const ratingLabels = await page.$$eval('.ratings button', (els) => els.map((e) => e.querySelector('b').textContent));
+  const ratingHints = await page.$$eval('.ratings button', (els) => els.map((e) => e.querySelector('span').textContent));
   const backFace = await page.$eval('.back-face', (el) => { const c = el.cloneNode(true); const d = c.querySelector('.more'); if (d) d.remove(); return c.textContent.replace(/\s+/g, ' '); });
-  check('tap flips to the back: meaning, context, FSRS labels and intervals', (await isBack()) && backText.includes(`nghĩa mock trong câu (${frontWord})`) && /Where you met it/.test(backText) && !/Mock usage note/.test(backFace) && JSON.stringify(ratingLabels) === JSON.stringify(['Again', 'Hard', 'Good', 'Easy']) && /^\d+(m|h|d|mo)$/.test((await text('.ratings .r3 small')).trim()), JSON.stringify([await isBack(), ratingLabels, await text('.ratings .r3 small'), await text('.exercise-foot')]));
-  check('back: word and sentence both have a speak button; the saved form is highlighted; hint to flip back', (await page.$$('.back-face .icon-btn.speak')).length >= 2 && (await page.$('.back-face .sentence-box mark')) !== null && /Tap to flip back/.test(await text('.back-face .back-foot')));
+  check('tap flips to the back: meaning, context, FSRS labels and intervals', (await isBack()) && backText.includes(`nghĩa mock trong câu (${frontWord})`) && /Where you met it/.test(backText) && !/Mock usage note/.test(backFace) && JSON.stringify(ratingLabels) === JSON.stringify(['Again', 'Hard', 'Good', 'Easy']) && /^in \d+ (min|hours?|days?|months?)$/.test((await text('.ratings .r3 small')).trim()), JSON.stringify([await isBack(), ratingLabels, await text('.ratings .r3 small'), await text('.exercise-foot')]));
+  // the old one-line legend under the buttons is gone: each button now explains itself, under a question
+  check('every rating button says what it means, and the row asks the question', JSON.stringify(ratingHints) === JSON.stringify(['forgot it', 'with effort', 'recalled it', 'instantly']) && /How well did you remember it\?/.test(await text('.rating-ask')) && (await page.$('.rating-legend')) === null
+    && (await page.$$eval('.ratings button small', (els) => els.every((e) => /^in <?\d+(\.\d+)? (min|hours?|days?|months?|years?)$/.test(e.textContent)))), JSON.stringify([ratingHints, await text('.ratings')]));
+  check('back: word and sentence both have a speak button; the saved form is highlighted; no flip hint repeated on the back', (await page.$$('.back-face .icon-btn.speak')).length >= 2 && (await page.$('.back-face .sentence-box mark')) !== null && (await page.$('.back-face .back-foot')) === null);
   await page.click('.back-face .more summary');
   await sleep(250);
   const more = await text('.back-face .more');
@@ -208,18 +266,8 @@ try {
   await sleep(400);
   check('a quick touch tap flips', await isBack());
 
-  // directions are presentation only
-  const segs = await page.$$('.segmented button');
-  await segs[1].click();
-  await sleep(400);
-  check('Meaning → Word: the front shows the meaning, not the word', /nghĩa mock trong câu/.test(await text('.front-face')) && (await page.$('.front-word')) === null && !(await isBack()) && (await page.$('.front-face .icon-btn.speak')) === null, await text('.front-face'));
-  await segs[2].click();
-  await sleep(400);
-  check('Context: the front is the sentence with a gap', /______/.test(await text('.front-face .cloze')) && (await page.$('.front-word')) === null, await text('.front-face'));
-  await segs[0].click();
-  await sleep(400);
-  await page.keyboard.press('Space');
-  await sleep(300);
+  // the card's direction is a setting now (Settings -> Flashcard front), not a control on the study screen
+  check('no direction or "answer by" control on the study screen', (await page.$('.review .segmented')) === null && (await isBack()) && (await page.$('.ratings')) !== null);
   await page.keyboard.press('1');     // Again -> comes back later in the session
   await sleep(600);
   for (let i = 0; i < 6; i++) {
@@ -229,32 +277,42 @@ try {
     await sleep(500);
   }
   const summary = await text('.summary');
-  check('session ends with an English summary (Again card repeated once)', /Review complete/.test(summary) && /5 answers/.test(summary), summary.slice(0, 120));
+  const summaryGrid = await page.$$eval('.summary-grid > div', (els) => els.map((e) => e.textContent));
+  check('session ends with an English summary (Again card repeated once)', /4 cards done!/.test(summary) && /You remembered 4 of 5 answers\./.test(summary) && JSON.stringify(summaryGrid) === JSON.stringify(['1Again', '0Hard', '1Good', '3Easy']), summary.slice(0, 120) + ' ' + JSON.stringify(summaryGrid));
+  // all four words are now scheduled and none is due, so nothing is open today: the summary only offers the way back
+  const exitDone = await sessionExit();
   const stats = await call('GET', '/api/v1/stats');
   check('server recorded 5 reviews', stats.totals.reviews === 5, JSON.stringify(stats.totals));
-  await page.click('.summary .btn.primary');
-  await sleep(700);
+  check('with nothing left open today, the summary offers only the way back', exitDone === 'back' && /^Back to Today$/.test((await text('.summary > .btn.primary')).trim()) && (await page.$('.summary .text-btn')) === null, await text('.summary'));
+  await clickCentered(page, '.summary > .btn.primary');
+  await sleep(900);
+  check('Today then shows the plan as finished: both steps ticked, practice still on offer', /#\/$/.test(page.url()) && /You're done for today/.test(await text('[data-testid="all-done"]')) && (await hasClass('[data-testid="review-card"]', 'is-done')) && (await hasClass('[data-testid="saved-card"]', 'is-done'))
+    && /Due cards reviewed/.test(await text('[data-testid="review-card"]')) && /5 reviews today/.test(await text('[data-testid="review-card"]')) && /Learned 4 words saved today/.test(await text('[data-testid="saved-card"]')) && (await page.$('[data-testid="plan"] .btn.primary')) === null && /^Practice again$/.test((await text('[data-testid="saved-card"] .btn')).trim())
+    && /5 ?reviews/.test(await text('[data-testid="today-stats"]')), (await text('[data-testid="plan"]')) + ' | ' + (await text('[data-testid="today-stats"]')));
+  check('Today: the week strip ticks today and the streak starts', (await page.$$('[data-testid="week-card"] .week-strip li.studied.today')).length === 1 && /1-day streak/.test(await text('[data-testid="week-card"]')) && /You have studied today/.test(await text('[data-testid="week-card"]')), await text('[data-testid="week-card"]'));
 
-  // ---- Library -> Daily Sets -> set detail: progress, then Write / Listen / Match as practice ----
+  // ---- Library -> today's Daily Set -> set detail: progress, then Write / Listen / Match as practice ----
   await page.goto(`http://127.0.0.1:${WEB_PORT}/#/library`, { waitUntil: 'load' });
   await sleep(700);
-  const libTabs = await page.$$eval('.tabs a', (els) => els.map((e) => e.textContent));
-  check('Library opens on All Sets (no word list), with My Sets and Daily Sets on one page', JSON.stringify(libTabs) === JSON.stringify(['All Sets', 'Daily Sets', 'My Sets']) && (await page.$('.word-list')) === null && /Create your own set/.test(await text('.page')) && (await page.$$('.set-item')).length === 1, JSON.stringify(libTabs));
+  const libCols = await page.$$eval('.library-cols > section > h2', (els) => els.map((e) => e.textContent));
+  check('Library is one page: no tabs, no word list, My Sets and Daily Sets side by side', (await page.$('.tabs')) === null && (await page.$('.word-list')) === null && /Create your own set/.test(await text('.page')) && (await page.$$('.set-item')).length === 1
+    && JSON.stringify(libCols) === JSON.stringify(['My Sets', 'Daily Sets']) && (await page.$$('.library-cols > section:nth-child(2) .set-item')).length === 1 && (await page.$('.library-cols > section:nth-child(1) .set-create-bar')) !== null, JSON.stringify(libCols));
   await page.type('.search-box input', 'resil');
   await sleep(600);
-  check('searching finds words across the library and replaces the set view', (await page.$$('.word-list li')).length === 1 && /resilient/.test(await text('.word-list')) && (await page.$('.tabs')) === null && /1 word matches/.test(await text('.list-count')), await text('.list-count'));
+  check('searching finds words across the library and replaces the set view', (await page.$$('.word-list li')).length === 1 && /resilient/.test(await text('.word-list')) && (await page.$('.library-cols')) === null && /1 word matches/.test(await text('.list-count')), await text('.list-count'));
   await page.click('.search-box .icon-btn');
   await sleep(300);
-  check('clearing the search brings the sets back', (await page.$('.tabs')) !== null && (await page.$('.word-list')) === null);
-  await page.click('.tabs a[href="#/library/sets"]');
+  check('clearing the search brings the sets back', (await page.$('.library-cols')) !== null && (await page.$('.word-list')) === null);
+  await page.goto(`http://127.0.0.1:${WEB_PORT}/#/library/sets`, { waitUntil: 'load' });
   await sleep(700);
-  const setText = await text('.set-item');
-  check('Daily Sets: one set for today, all studied', (await page.$$('.set-item')).length === 1 && /Today/.test(setText) && /4 words/.test(setText) && /all studied/.test(setText), setText);
+  const setText = await text('.library-cols > section:nth-child(2) .set-item');
+  check('/library/sets still opens the Library; the Daily Set for today is all studied', (await page.$('.library-cols')) !== null && (await page.$$('.set-item')).length === 1 && /Today/.test(setText) && /4 words/.test(setText) && /all studied/.test(setText), setText);
   await page.click('.set-item');
   await sleep(800);
   const progressText = await text('[data-testid="set-progress"]');
-  check('set detail: progress summary, a state on every word, one primary action', /4 words saved/.test(await text('.lead')) && /4studied/.test(progressText) && /0new/.test(progressText) && /100%/.test(progressText) && (await page.$$('.word-list .state-pill')).length === 4
-    && /Practice again|Continue learning/.test(await text('.study-cta .btn.primary')) && (await page.$$('.study-cta .quick-modes button')).length === 4, progressText + ' | ' + (await text('.study-cta .btn.primary')));
+  check('set detail: progress summary, a state on every word, one primary action, a back link to the Library', /4 words saved/.test(await text('.lead')) && /4studied/.test(progressText) && /0new/.test(progressText) && /100%/.test(progressText) && (await page.$$('.word-list .state-pill')).length === 4
+    && /Practice again|Continue learning/.test(await text('.study-cta .btn.primary')) && (await page.$$('.study-cta .quick-modes button')).length === 4 && /^Library$/.test((await text('.back-link')).trim()), progressText + ' | ' + (await text('.study-cta .btn.primary')));
+  uiText.dailySet = await uiLabels();
   // a throwaway word, so deleting it cannot disturb the four words the rest of the run studies
   await call('POST', '/api/v1/sync', { op: 'vocabulary.save', payload: { vocabulary: { language: 'en', lemma: 'scratchword', surface: 'scratchword', quickMeaning: 'bỏ đi' } } });
   const wordsBefore = (await call('GET', '/api/v1/vocabulary')).total;
@@ -399,35 +457,54 @@ try {
   known = [...SEEDS, ...fresh];
   await page.goto(`http://127.0.0.1:${WEB_PORT}/#/`, { waitUntil: 'load' });
   await sleep(1000);
-  check('Today offers to continue with just the new words', /6 words saved/.test(await text('[data-testid="saved-card"]')) && /Continue learning · 2 words/.test(await text('[data-testid="saved-card"] .btn.primary')), await text('[data-testid="saved-card"] .btn.primary'));
-  await page.click('[data-testid="saved-card"] .btn.primary');
+  check('Today offers to continue with just the new words', /6 ?words saved/.test(await text('[data-testid="today-stats"]')) && (await hasClass('[data-testid="saved-card"]', 'is-next')) && /Keep learning 2 words saved today/.test(await text('[data-testid="saved-card"] .plan-title'))
+    && /^Continue learning$/.test((await text('[data-testid="saved-card"] .btn.primary')).trim()) && (await hasClass('[data-testid="review-card"]', 'is-done')) && (await page.$('[data-testid="all-done"]')) === null && (await page.$$('[data-testid="saved-card"] .today-word-preview a:not(.more-chip)')).length === 5 && /^\+1 more$/.test((await text('[data-testid="saved-card"] .more-chip')).trim()),
+    (await text('[data-testid="saved-card"]')) + ' | ' + (await text('[data-testid="today-stats"]')));
+  // another session from Today that leaves the step open: its summary carries straight on into the step
+  await skipThroughListen(6);
+  const exitNext = await sessionExit();
+  check('the summary names the step that is still open', exitNext === 'next' && /Keep learning 2 words saved today/.test(await text('.next-step .plan-title')) && /^Continue learning$/.test((await text('.next-step .btn.primary')).trim()) && (await call('GET', '/api/v1/stats')).totals.reviews === before, await text('.summary'));
+  await clickCentered(page, '.next-step .btn.primary');
   await sleep(900);
-  const steps = [];
-  let tripped = false;
+  check('its button starts that step without a detour through Today: Learn, with only the 2 new words', /\/review/.test(page.url()) && /^\s*Learn · /.test(await text('.session-label')) && /Meet · 1\/2/.test(await text('.review-top')) && (await page.$('.flip-card')) !== null && (await page.$('.summary')) === null, (await text('.review-top')) + ' ' + (await text('.session-label')));
+  await page.click('.review-top .icon-btn');
+  await sleep(900);
+  check('closing it returns to Today with the step still open', /#\/$/.test(page.url()) && (await hasClass('[data-testid="saved-card"]', 'is-next')), page.url());
+  await page.click('[data-testid="saved-card"] .btn.primary');          // and the same step from Today itself
+  await sleep(900);
+  const steps = [], askedWords = [], ticks = [], chooseKinds = [];
+  let tripped = false, writeShowsSentence = false;
   let learnFirstChecks = 0;
   for (let i = 0; i < 30 && !(await page.$('.summary')); i++) {
-    const label = await text('.step-ladder li.now') || await text('.review .hint');
-    steps.push(label.trim());
+    const label = (await text('.phase-bar li.now')).trim();
+    steps.push(label);
+    ticks.push((await page.$$('.phase-bar li.done')).length);
     if (await page.$('.flip-card')) {
+      askedWords.push((await text('.front-word')).trim());
       if (i === 0) learnFirstChecks += 1;
-      if (i === 0) check('Learn starts a new word with its card, a step ladder and nothing to grade yet', /Meet/.test(label) && (await page.$$('.step-ladder li')).length === 4 && /Learn · /.test(await text('.session-label')) && (await page.$('.ratings')) === null && (await page.$('.exercise-foot .btn')) === null);
+      if (i === 0) check('Learn starts with the first word\'s card, a three-phase bar on Meet, a "Meet · 1/2" counter and nothing to grade yet', label === 'Meet' && (await page.$$('.phase-bar li')).length === 3 && /Meet · 1\/2/.test(await text('.review-top')) && /Learn · /.test(await text('.session-label')) && (await page.$('.ratings')) === null && (await page.$('.exercise-foot .btn')) === null, (await text('.phase-bar')) + ' | ' + (await text('.review-top')));
       await tapCard();
       await sleep(350);
       if (i === 0) learnFirstChecks += 1;
-      if (i === 0) check('after flipping, the button names this word\'s next rung without promising the next screen', /(Next|later): pick the meaning/.test(await text('.exercise-foot .btn.primary')), await text('.exercise-foot .btn.primary'));
-      await page.click('.exercise-foot .btn.primary');                  // Next: …
+      if (i === 0) check('after flipping, the only button is a plain "Got it"', /^Got it$/.test((await text('.exercise-foot .btn.primary')).trim()) && (await page.$$('.exercise-foot .btn')).length === 1, await text('.exercise-foot .btn.primary'));
+      await page.click('.exercise-foot .btn.primary');
     } else if (await page.$('.options')) {
       const kind = await text('.review .hint');
-      const word = /What does it mean/.test(kind) ? (await text('.quiz-word span')).trim() : lemmaForCloze(await text('.review .cloze'));
-      const wanted = /What does it mean/.test(kind) ? `(${word})` : word;
+      const askMeaning = /What does it mean/.test(kind);   // "What does it mean?" vs "Which word completes the sentence?"
+      chooseKinds.push(askMeaning ? 'meaning' : /completes the sentence/.test(kind) ? 'sentence' : kind.trim());
+      const word = askMeaning ? (await text('.quiz-word span')).trim() : lemmaForCloze(await text('.review .cloze'));
+      askedWords.push(word);
+      const wanted = askMeaning ? `(${word})` : word;
       const options = await page.$$('.options button');
       let target = null, other = null;
-      for (const o of options) { const label = await o.evaluate((e) => e.querySelector('span').textContent); if (/What does it mean/.test(kind) ? label.includes(wanted) : label === wanted) target = o; else other = o; }
-      if (!tripped && word === 'hedge' && /What does it mean/.test(kind)) { tripped = true; await other.click(); } else await target.click();   // one deliberate mistake
+      for (const o of options) { const l = await o.evaluate((e) => e.querySelector('span').textContent); if (askMeaning ? l.includes(wanted) : l === wanted) target = o; else other = o; }
+      if (!tripped && word === 'hedge') { tripped = true; await other.click(); } else await target.click();   // one deliberate mistake
       await sleep(300);
       await page.click('.exercise-foot .btn.primary');
     } else if (await page.$('.type-input')) {
       const word = ((await text('.quiz-q')).match(/\(([^)]+)\)\s*$/) || [])[1] || '';
+      askedWords.push(word);
+      if (!writeShowsSentence) writeShowsSentence = /______/.test(await text('.review .small-cloze'));
       await page.type('.type-input', word);
       await page.keyboard.press('Enter');
       await sleep(300);
@@ -437,38 +514,29 @@ try {
   }
   check('the Learn first-step assertions actually ran', learnFirstChecks === 2, String(learnFirstChecks));
   const learnSummary = await text('.summary');
-  check('Learn walks each word up the ladder and steps back after a mistake', steps.filter((s) => s === 'Meet').length === 3 && steps.filter((s) => s === 'Choose').length === 3 && steps.filter((s) => s === 'Context').length === 2 && steps.filter((s) => s === 'Write').length === 2, steps.join(' > '));
-  check('Learn summary names the word that needs another look', /Nice work/.test(learnSummary) && /2 words practiced/.test(learnSummary) && /hedge\s*1 miss · rated Hard/.test(learnSummary), learnSummary.slice(0, 160));
+  // the whole round meets, then the whole round chooses, then the whole round writes; the missed Choose is re-asked at the end of Choose
+  check('Learn runs the round in phases: Meet ×2, Choose ×3 (the miss re-asked last), Write ×2 — never back to an earlier phase', steps.join(' > ') === 'Meet > Meet > Choose > Choose > Choose > Write > Write', steps.join(' > '));
+  const both = (a) => [...a].sort().join() === 'bolster,hedge';
+  check('each phase covers both words; hedge comes back at the end of Choose after its miss', both(askedWords.slice(0, 2)) && both(askedWords.slice(2, 4)) && askedWords[4] === 'hedge' && both(askedWords.slice(5, 7)) && askedWords.length === 7, askedWords.join(' > '));
+  check('the phase bar ticks a phase off once the whole group has passed it', ticks.join() === '0,0,1,1,1,2,2', ticks.join());
+  check('Choose fills the saved sentence when the word has one; Write shows the meaning with the sentence as a hint', chooseKinds.every((k) => k === 'sentence') && chooseKinds.length === 3 && writeShowsSentence, JSON.stringify(chooseKinds));
+  check('Learn summary names the word that needs another look', /Nice work/.test(learnSummary) && /2 words practiced · 7 questions · 1 without a mistake/.test(learnSummary) && /hedge\s*1 miss · rated Hard/.test(learnSummary), learnSummary.slice(0, 160));
   const hedge = await call('GET', `/api/v1/vocabulary/${freshIds.hedge}`);
   const bolster = await call('GET', `/api/v1/vocabulary/${freshIds.bolster}`);
   check('Learn sends exactly one review per word: Hard after a miss, Good after a clean run', hedge.reviews.length === 1 && hedge.reviews[0].rating === 2 && bolster.reviews.length === 1 && bolster.reviews[0].rating === 3 && (await call('GET', '/api/v1/stats')).totals.reviews === before + 2, JSON.stringify([hedge.reviews.map((r) => r.rating), bolster.reviews.map((r) => r.rating)]));
-  await page.click('.summary .btn.primary');
-  await sleep(700);
-
-  // ---- Context challenge: the sentences the words came from ----
-  await page.click('[data-testid="saved-card"] .more-modes');
-  await sleep(400);
-  await page.click('[data-mode="context"]');
+  // both new words are scheduled now, so today's plan is finished again and the summary just leads back
+  const exitLearn = await sessionExit();
+  check('Learn summary: nothing left open, so only the way back (the "Worth another look" practice stays a secondary button)', exitLearn === 'back' && /^Back to Today$/.test((await text('.summary > .btn.primary')).trim()) && /Practice this word again$/.test(await text('.summary-list .btn')) && (await page.$$('.summary .btn.primary')).length === 1, await text('.summary'));
+  await clickCentered(page, '.summary > .btn.primary');
   await sleep(900);
-  const ctxWord = lemmaForCloze(await text('.review .cloze')) || '買う';
-  check('Context challenge shows a saved sentence with a gap and word options', /______/.test(await text('.review .cloze')) && (await page.$$('.options button')).length >= 2 && (await page.$$('.segmented button')).length === 2, await text('.review .cloze'));
-  for (const o of await page.$$('.options button')) { if ((await o.evaluate((e) => e.querySelector('span').textContent)) === ctxWord) { await o.click(); break; } }
+
+  // ---- a finished step still offers practice, through the slimmer picker ----
+  check('a finished step keeps a "Practice again" button that opens the picker for all of today\'s words', (await hasClass('[data-testid="saved-card"]', 'is-done')) && /Learned 6 words saved today/.test(await text('[data-testid="saved-card"]')) && (await page.$('[data-testid="saved-card"] .more-modes')) === null && /^Practice again$/.test((await text('[data-testid="saved-card"] .btn')).trim()), await text('[data-testid="saved-card"]'));
+  await page.click('[data-testid="saved-card"] .btn');                  // Practice again
+  await sleep(400);
+  check('…and the picker is for those 6 words: six modes, all available, no quiz or context mode', /· 6 words/.test(await text('.sheet-head')) && (await page.$$('[data-mode]:not([disabled])')).length === 6 && (await page.$('[data-mode="quiz"]')) === null && (await page.$('[data-mode="context"]')) === null, await text('.sheet-head'));
+  await page.keyboard.press('Escape');
   await sleep(300);
-  check('picking the word that was in the sentence is correct', (await page.$('.options button.correct')) !== null && (await page.$('.options button.wrong')) === null && /Correct/.test(await text('.exercise-foot')), ctxWord);
-  await page.click('.exercise-foot .btn.primary');
-  await sleep(500);
-  await (await page.$$('.segmented button'))[1].click();                // Type it
-  await sleep(400);
-  check('"Type it" asks for the missing word, says the form matters, and keeps the meaning behind a hint', (await page.$('.type-input')) !== null && /Type the missing word/.test(await text('.review .hint')) && /Type the exact form the sentence needs/.test(await text('.context-hint')) && !/nghĩa mock/.test(await text('.review .flashcard')) && (await page.$('.hint-btn')) !== null, await text('.context-hint'));
-  await page.click('.hint-btn');
-  await sleep(250);
-  const hinted = ((await text('.review .flashcard')).match(/nghĩa mock trong câu \(([^)]+)\)/) || [])[1] || '';
-  await page.type('.type-input', hinted);
-  await page.keyboard.press('Enter');
-  await sleep(400);
-  check('the hint reveals the meaning, and the typed word is accepted', !!hinted && /Correct!/.test(await text('.type-result')), hinted);
-  await page.click('.review-top .icon-btn');
-  await sleep(600);
 
   // ---- Progress ----
   const todaysCards = (await call('GET', `/api/v1/sets/${(await call('GET', '/api/v1/sets')).today}`)).cards;
@@ -477,15 +545,19 @@ try {
   await page.goto(`http://127.0.0.1:${WEB_PORT}/#/progress`, { waitUntil: 'load' });
   await sleep(1200);
   const tiles = await text('[data-testid="progress-summary"]');
-  check('Progress: streak, words learned, recall rate, reviews this week', /1day streak/.test(tiles) && /6words learned/.test(tiles) && /\d+%recall rate/.test(tiles) && /reviews this week/.test(tiles), tiles);
-  check('Progress: learning stages without calling anything "mastered"', /New/.test(await text('[data-testid="learning-progress"]')) && /Long-term review/.test(await text('[data-testid="learning-progress"]')) && !/master/i.test(await text('.page')));
+  // the words that need attention are listed with their meanings, which are Vietnamese content, not UI
+  uiText.progress = await page.evaluate(() => { const c = document.body.cloneNode(true); c.querySelectorAll('.attention-list .m').forEach((e) => e.remove()); return c.textContent; });
+  check('Progress: streak, words learned, recall rate, reviews this week', /1day streak/.test(tiles) && /6words learned/.test(tiles) && /\d+%recall rate/.test(tiles) && /\d+reviews this week/.test(tiles), tiles);
+  check('Progress: learning stages without calling anything "mastered"', /New/.test(await text('[data-testid="learning-progress"]')) && /Learning/.test(await text('[data-testid="learning-progress"]')) && /Long-term review/.test(await text('[data-testid="learning-progress"]')) && !/master/i.test(await text('.page')));
+  const gridCards = await page.$$eval('.progress-grid > section.card', (els) => els.map((e) => e.dataset.testid || ''));
+  check('Progress: every card after the summary tiles sits in one grid', JSON.stringify(gridCards) === JSON.stringify(['learning-progress', 'activity', 'recall', 'needs-attention']) && (await page.$$('.progress-page section.card')).length === gridCards.length && (await page.$('.progress-grid .summary-tiles')) === null && (await page.$('.progress-page > .summary-tiles')) !== null, JSON.stringify(gridCards));
   check('Progress: a 12-week activity heatmap with today filled in', (await page.$$('.heat-week i:not(.pad)')).length === 84 && (await page.$$('.heat-week i.l4')).length === 1);
-  check('Progress: recall rate explains how it is calculated', /Hard, Good or Easy/.test(await text('[data-testid="recall"]')) && /not an exact measure/.test(await text('[data-testid="recall"]')) && /Last 7 days/.test(await text('[data-testid="recall"]')));
+  check('Progress: recall rate shows the three windows without a footnote', /Last 7 days/.test(await text('[data-testid="recall"]')) && !/not an exact measure/.test(await text('[data-testid="recall"]')));
   const attention = await text('[data-testid="needs-attention"]');
   check('Progress: words missed repeatedly need attention', /curb/.test(attention) && /Again [23]×/.test(attention), attention.slice(0, 160));
   await page.click('[data-testid="needs-attention"] .btn.primary');
   await sleep(400);
-  check('"Practice difficult words" opens the mode picker for those words', /Difficult words/.test(await text('.sheet-head')) && (await page.$$('[data-mode]')).length === 8);
+  check('"Practice difficult words" opens the mode picker for those words', /^Practice difficult words$/.test((await text('[data-testid="needs-attention"] .btn.primary')).trim()) && /Difficult words · \d+ words?/.test(await text('.sheet-head')) && (await page.$$('[data-mode]')).length === 6);
   await page.keyboard.press('Escape');
   await sleep(300);
 
@@ -498,11 +570,12 @@ try {
   await page.click('.word-list li .w');
   await sleep(700);
   const detail = await text('.page');
-  check('word detail in English with exposure + schedule', /Where you met this word 1/.test(detail) && /Review schedule/.test(detail), detail.slice(0, 80));
+  check('word detail in English with exposure + schedule', /Where you met this word 1/.test(detail) && /Review schedule/.test(detail) && /\d+ reviews?/.test(detail), detail.slice(0, 80));
 
   // edit the word
   await page.click('button[aria-label="Edit word"]');
   await sleep(300);
+  uiText.wordEdit = await uiLabels();
   const meaningInput = (await page.$$('.edit-word input'))[1];
   await clearInput(meaningInput);
   await meaningInput.type('my own meaning');
@@ -514,7 +587,7 @@ try {
   // My Sets: create, add words, rename, remove a word, membership chip, delete
   await page.goto(`http://127.0.0.1:${WEB_PORT}/#/library/my`, { waitUntil: 'load' });
   await sleep(600);
-  check('My Sets tab starts empty', /No sets yet/.test(await text('.page')) && /My Sets/.test(await text('.tabs')) && (await page.$('.set-composer')) === null);
+  check('/library/my opens the Library with an empty My Sets section (no tabs)', /No sets yet/.test(await text('.library-cols > section:nth-child(1)')) && (await page.$('.tabs')) === null && (await page.$('.library-cols')) !== null && (await page.$('.set-composer')) === null);
   await page.click('.set-create-bar .btn.primary');
   await sleep(300);
   check('Create set opens a term–meaning composer with two empty rows', (await page.$$('.composer-row')).length === 2 && /Create flashcards/.test(await text('.set-composer')) && (await page.$$('.composer-columns span')).length === 3);
@@ -546,9 +619,10 @@ try {
   await sleep(150);
   check('Japanese sets get a reading column', (await page.$$('.composer-columns span')).length === 4 && (await rowInputs(0)) === 3);
   await page.select('.composer-language select', 'en');
-  await page.click('.composer-foot .btn.primary');
+  // the button can end up behind the fixed bottom nav (it did once the label got longer); a person would scroll, so does the test
+  await clickCentered(page, '.composer-foot .btn.primary');
   await sleep(1500);
-  check('creating a set with two typed cards opens it with those words in the library too', /library\/my\//.test(page.url()) && /Economy words/.test(await text('h1')) && (await page.$$('.word-list li.with-action')).length === 2 && /ledger/.test(await text('.word-list')) && /sổ cái/.test(await text('.word-list')) && (await call('GET', '/api/v1/vocabulary')).total === 8, JSON.stringify([page.url(), await text('.lead'), (await page.$$('.word-list li.with-action')).length, await text('.word-list'), (await call('GET', '/api/v1/vocabulary')).total]));
+  check('creating a set with two typed cards opens it with those words in the library too', /library\/my\//.test(page.url()) && /Economy words/.test(await text('h1')) && (await page.$$('.word-list li.with-action')).length === 2 && /ledger/.test(await text('.word-list')) && /sổ cái/.test(await text('.word-list')) && (await call('GET', '/api/v1/vocabulary')).total === 8, JSON.stringify([page.url(), await text('.lead'), (await page.$$('.word-list li.with-action')).length, await text('.word-list'), (await call('GET', '/api/v1/vocabulary')).total, await text('.set-composer .error'), await text('.composer-foot'), failedResponses.slice(-3)]));
   await page.click('.section-head .btn');
   await sleep(500);
   check('"Add words" opens on typing new words, with the library as the other option', (await page.$('.add-words .word-rows')) !== null && /Type new words/.test(await text('.add-words .segmented')) && /Pick from library/.test(await text('.add-words .segmented')) && (await page.$('.pick-list')) === null && (await page.$('.section-head .btn')) === null);
@@ -580,6 +654,7 @@ try {
   await page.type('.picker input.input', 'adds');
   await sleep(600);
   check('a library search with no match offers to type that word', /Nothing in your library matches “adds”/.test(await text('.pick-list')) && /Add “adds” as a new word/.test(await text('.pick-empty .btn')));
+  uiText.picker = await uiLabels();
   await clickCentered(page, '.pick-empty .btn');
   await sleep(300);
   check('…which switches back to typing with the term filled in', (await page.$eval('.add-words .composer-row:nth-child(1) .composer-input:nth-of-type(1)', (i) => i.value)) === 'adds');
@@ -589,9 +664,10 @@ try {
   await boxes[0].click(); await boxes[1].click();
   // the short list leaves the Add button behind the fixed bottom nav; a person would scroll, so does the test
   await page.$eval('.picker .btn.primary', (b) => b.scrollIntoView({ block: 'center' }));
+  const pickLabel = await text('.picker .btn.primary');
   await page.click('.picker .btn.primary');
   await sleep(1200);
-  check('two more words added from the library', (await page.$$('.word-list li.with-action')).length === 5 && /5 words/.test(await text('.lead')) && (await page.$('.add-words')) === null, JSON.stringify([await text('.lead'), failedResponses]));
+  check('two more words added from the library', (await page.$$('.word-list li.with-action')).length === 5 && /^\s*5 words\s*$/.test(await text('.lead')) && /^\s*Add 2 words\s*$/.test(pickLabel) && (await page.$('.add-words')) === null, JSON.stringify([await text('.lead'), pickLabel, failedResponses]));
   check('custom set has the same study actions and progress', (await page.$('.study-cta .btn.primary:not([disabled])')) !== null && (await page.$$('.study-cta .quick-modes button')).length === 4 && (await page.$('[data-testid="set-progress"]')) !== null);
   await call('POST', '/api/v1/enrich/run');
   await sleep(600);
@@ -621,16 +697,17 @@ try {
   await page.goBack(); await sleep(700);
   await page.click('button[aria-label="Delete set"]');
   await sleep(400);
-  check('deleting a set says what happens to its words and offers both ways', /stay in your Library/.test(await text('.delete-confirm')) && (await page.$$('.delete-confirm .btn')).length === 3 && /Delete set and its 4 words/.test(await text('.delete-confirm')), await text('.delete-confirm'));
+  check('deleting a set says what happens to its words and offers both ways', /Its 4 words stay in your Library/.test(await text('.delete-confirm')) && (await page.$$('.delete-confirm .btn')).length === 3 && /^Delete set, keep the words$/.test((await text('.delete-confirm .btn')).trim()) && /^Delete set and its 4 words$/.test((await text('.delete-confirm .btn.danger')).trim()), await text('.delete-confirm'));
   await page.click('.delete-confirm .btn');   // "Delete set, keep the words"
   await sleep(900);
-  check('deleting the set returns to My Sets and keeps the words', /No sets yet/.test(await text('.page')) && (await call('GET', '/api/v1/vocabulary')).total === 9);
+  check('deleting the set returns to the Library and keeps the words', /#\/library/.test(page.url()) && /No sets yet/.test(await text('.page')) && (await call('GET', '/api/v1/vocabulary')).total === 9, page.url());
 
   // add a word by hand, then delete it
   await page.goto(`http://127.0.0.1:${WEB_PORT}/#/library`, { waitUntil: 'load' });
   await sleep(600);
   await page.click('.library-search .btn');
   await sleep(300);
+  uiText.addWord = await uiLabels();
   await page.type('.add-word input', 'Tariff');
   await (await page.$$('.add-word input'))[1].type('The new tariff hit exporters hard.');
   await page.click('.add-word .ai-btn');
@@ -655,24 +732,40 @@ try {
   await page.evaluate((v) => localStorage.setItem('readlex.reviewQueue:seed@example.com', v), fakeEntry);
   await page.reload({ waitUntil: 'load' });
   await sleep(900);
-  check('this account\'s own queue is shown and can be sent', /1 review is waiting/.test(await text('.settings')), await text('.settings'));
+  check('this account\'s own queue is shown and can be sent', /1 review is waiting to be sent/.test(await text('.settings')) && /Send now/.test(await text('.settings')), await text('.settings'));
   await page.evaluate(() => { localStorage.removeItem('readlex.reviewQueue:someone.else@example.com'); localStorage.removeItem('readlex.reviewQueue:seed@example.com'); });
   await page.reload({ waitUntil: 'load' });
   await sleep(800);
   const settingsText = await text('.page');
   const sections = await page.$$eval('.settings-section h2', (els) => els.map((e) => e.textContent));
-  check('Settings sections', JSON.stringify(sections) === JSON.stringify(['Account', 'AI assistance', 'Learning', 'Pronunciation', 'Data & Sync', 'App', 'Danger zone']), JSON.stringify(sections));
-  check('time zone shown by name, never as raw minutes; no daily new-word limit', /Automatic · .+\(UTC[+-]\d/.test(settingsText) && !/420/.test(settingsText) && !/per day/i.test(settingsText), (settingsText.match(/Automatic · [^)]+\)/) || [''])[0]);
-  const bodyText = await page.evaluate(() => document.body.innerText);
-  check('no Vietnamese UI labels left', !/[ăâđêôơưĂÂĐÊÔƠƯ]|[àáảãạèéẻẽẹìíỉĩịòóỏõọùúủũụỳýỷỹỵ]/.test(bodyText), (bodyText.match(/\S*[ăâđêôơư]\S*/) || [''])[0]);
+  check('Settings sections (no App section)', JSON.stringify(sections) === JSON.stringify(['Account', 'AI assistance', 'Learning', 'Pronunciation', 'Data & Sync', 'Danger zone']), JSON.stringify(sections));
+  check('no information-only rows: no time zone, no algorithm blurb, no daily new-word limit, no extension or install how-tos', !/Time zone/.test(settingsText) && !/FSRS/.test(settingsText) && !/420/.test(settingsText) && !/per day/i.test(settingsText)
+    && !/Browser extension/.test(settingsText) && !/Set up the extension/.test(settingsText) && !/Install ReadLex/.test(settingsText) && /Sync status/.test(settingsText));
+  check('the flashcard front is a Learning setting, Word by default', /Flashcard front/.test(settingsText) && (await page.$eval('select[aria-label="Flashcard front"]', (el) => el.value)) === 'word');
+  // The UI is English: no Vietnamese label may be left. Today, Progress and Settings are checked whole; the
+  // other screens show the learner's own Vietnamese meanings (content, not UI), so only their labels are checked.
+  uiText.settings = await page.evaluate(() => document.body.innerText);
+  const VIETNAMESE = /\S*([ăâđêôơưĂÂĐÊÔƠƯ]|[àáảãạèéẻẽẹìíỉĩịòóỏõọùúủũụỳýỷỹỵ]|[ằắẳẵặầấẩẫậềếểễệồốổỗộờớởỡợừứửữự])\S*/;
+  const leftovers = Object.entries(uiText).map(([where, body]) => [where, (body.match(VIETNAMESE) || [''])[0]]).filter(([, hit]) => hit);
+  check('no Vietnamese UI labels left (Today, Progress, Settings; control labels on set, word, picker and add-word screens)', Object.keys(uiText).length === 7 && Object.values(uiText).every((body) => body.length > 40) && leftovers.length === 0, JSON.stringify(leftovers));
+  await page.select('select[aria-label="Flashcard front"]', 'meaning');
+  await sleep(200);
+  check('choosing Meaning is kept in the config', (await page.evaluate(() => JSON.parse(localStorage.getItem('readlex.config')).flashDirection)) === 'meaning');
+  await page.goto(`http://127.0.0.1:${WEB_PORT}/#/library/sets/${(await call('GET', '/api/v1/sets')).today}`, { waitUntil: 'load' });
+  await sleep(900);
+  await (await page.$$('.study-cta .quick-modes button'))[0].click();     // Flashcards
+  await sleep(800);
+  check('Flashcards then start on the meaning side, still with no direction control on the screen', (await page.$('.front-meaning')) !== null && (await page.$('.front-word')) === null && (await page.$('.review .segmented')) === null && !(await isBack()), await text('.front-face'));
+  await page.click('.review-top .icon-btn');
+  await sleep(500);
   check('no page errors', errors.length === 0, errors.join(' | ').slice(0, 200));
 } catch (err) {
   check('unexpected error', false, err.stack || String(err));
 } finally {
   if (browser) await browser.close().catch(() => {});
-  for (const p of [api, web]) { try { process.kill(-p.pid, 'SIGTERM'); } catch { p.kill('SIGTERM'); } }
+  for (const p of [api, web]) stopProcessTree(p);
   await sleep(800);
-  for (const p of [api, web]) { try { process.kill(-p.pid, 'SIGKILL'); } catch { /* gone */ } }
+  for (const p of [api, web]) stopProcessTree(p, true);
 }
 const failed = results.filter((x) => !x).length;
 console.log(`\n${results.length - failed}/${results.length} checks passed`);

@@ -61,7 +61,7 @@ async function lookupJapanese(text, kind, target) {
 export async function lookup(text, { source = 'auto', target = 'vi', kind = 'word' } = {}) {
   const normalized = kind === 'scan' ? String(text || '') : String(text || '').replace(/\s+/g, ' ').trim();
   if (!normalized) throw new Error('Empty text');
-  if (normalized.length > 1000) throw new Error('Đoạn văn quá dài (tối đa 1000 ký tự)');
+  if (normalized.length > 1000) throw new Error('The text is too long (1000 characters at most)');
   if (source === 'auto') source = detectSource(normalized);
 
   if (source === 'ja' && (kind === 'scan' || kind === 'ja-phrase' || kind === 'word')) {
@@ -144,7 +144,7 @@ async function translateWithFallback(text, sl, tl, isWord) {
       lastError = err;
     }
   }
-  throw lastError || new Error('Không dịch được');
+  throw lastError || new Error('Translation failed');
 }
 
 // Fast endpoint used by Google's own dictionary extension. Returns ["translation"] or [["translation","src"]].
@@ -210,7 +210,7 @@ async function freeDictionary(word) {
 
 // Fetch an audio clip in the background (pages with a strict CSP cannot play the Google URL directly).
 export async function fetchAudioDataUrl(url) {
-  if (!/^https:\/\/(translate\.google\.com|api\.dictionaryapi\.dev)\//.test(url)) throw new Error('URL không được phép');
+  if (!/^https:\/\/(translate\.google\.com|api\.dictionaryapi\.dev)\//.test(url)) throw new Error('This URL is not allowed');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6000);
   try {

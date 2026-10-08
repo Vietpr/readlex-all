@@ -40,10 +40,10 @@ export interface ReviewResult { ok: boolean; cardId: string; state: number; due:
 export type Rating = 1 | 2 | 3 | 4;
 export const RATING_LABEL: Record<Rating, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 export const RATING_KEY: Record<Rating, string> = { 1: 'again', 2: 'hard', 3: 'good', 4: 'easy' };
-export const RATING_HINT: Record<Rating, string> = { 1: "Didn't know it", 2: 'Recalled with effort', 3: 'Recalled it', 4: 'Knew it instantly' };
+export const RATING_HINT: Record<Rating, string> = { 1: 'forgot it', 2: 'with effort', 3: 'recalled it', 4: 'instantly' };
 export const STATE_LABEL: Record<number, string> = { 0: 'New', 1: 'Learning', 2: 'Review', 3: 'Relearning' };
 export const STATUS_LABEL: Record<string, string> = { new: 'New', learning: 'Learning', known: 'Known', ignored: 'Ignored' };
 // One card, one FSRS schedule: every mode below is only a different way to look at the same cards.
-export type StudyMode = 'learn' | 'flash' | 'write' | 'listen' | 'quiz' | 'context' | 'match' | 'sprint';
-export type FlashDirection = 'word' | 'meaning' | 'context';
-export const MODE_LABEL: Record<StudyMode, string> = { learn: 'Learn', flash: 'Flashcards', write: 'Write', listen: 'Listen', quiz: 'Quick quiz', context: 'In context', match: 'Match', sprint: 'Recall sprint' };
+export type StudyMode = 'learn' | 'flash' | 'write' | 'listen' | 'match' | 'sprint';
+export type FlashDirection = 'word' | 'meaning';
+export const MODE_LABEL: Record<StudyMode, string> = { learn: 'Learn', flash: 'Flashcards', write: 'Write', listen: 'Listen', match: 'Match', sprint: 'Recall sprint' };

@@ -1,144 +1,283 @@
 <!doctype html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>ReadLex · Cài đặt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ReadLex · Settings</title>
   <link rel="stylesheet" href="../shared/common.css">
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <main class="wrap">
-    <header class="row">
-      <h1>Cài đặt ReadLex</h1>
-      <span class="grow"></span>
-      <a href="../vocabulary/vocabulary.html">Kho từ vựng →</a>
-    </header>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <span class="wordmark">Read<span>Lex</span></span>
+      <nav class="app-nav" aria-label="Extension pages">
+        <a href="../vocabulary/vocabulary.html">Vocabulary</a>
+        <a href="options.html" aria-current="page">Settings</a>
+      </nav>
+      <div class="save-status" role="status">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+        <span id="status">All changes are saved automatically</span>
+      </div>
+    </div>
+  </header>
 
-    <section class="card">
-      <h2>Rê chuột</h2>
-      <div class="field">
-        <label>Cách kích hoạt</label>
-        <div class="options">
-          <label><input type="radio" name="hoverMode" value="hover"> Rê chuột lên từ (sau một khoảng chờ)</label>
-          <label><input type="radio" name="hoverMode" value="alt"> Giữ <kbd>Alt</kbd> + rê chuột</label>
-          <label><input type="radio" name="hoverMode" value="ctrl"> Giữ <kbd>Ctrl</kbd> + rê chuột</label>
-          <label><input type="radio" name="hoverMode" value="off"> Tắt (chỉ dùng bôi đen / chuột phải)</label>
+  <main class="page layout">
+    <h1 class="sr-only">ReadLex settings</h1>
+
+    <nav class="menu" id="section-menu" aria-label="Settings sections">
+      <a href="#re-chuot">On hover</a>
+      <a href="#boi-den">On selection</a>
+      <a href="#hop-tra-tu">Lookup popup</a>
+      <a href="#ai">AI explanations</a>
+      <a href="#backend-section">Account &amp; sync</a>
+      <a href="#trang-da-tat">Disabled sites</a>
+      <a href="#nang-cao">Advanced</a>
+    </nav>
+
+    <div class="sections">
+
+      <section class="card panel" id="re-chuot" aria-labelledby="h-re-chuot">
+        <h2 id="h-re-chuot">On hover</h2>
+
+        <div class="group">
+          <div class="q" id="q-kich-hoat">When does the translation box appear?</div>
+          <div class="tiles" role="radiogroup" aria-labelledby="q-kich-hoat">
+            <label class="tile"><input type="radio" name="hoverMode" value="hover"><span class="tile-title">Hover over text</span><span class="tile-desc">appears after a short pause</span></label>
+            <label class="tile"><input type="radio" name="hoverMode" value="alt"><span class="tile-title">Hold Alt and hover</span><span class="tile-desc">only when you want it</span></label>
+            <label class="tile"><input type="radio" name="hoverMode" value="ctrl"><span class="tile-title">Hold Ctrl and hover</span><span class="tile-desc">only when you want it</span></label>
+            <label class="tile"><input type="radio" name="hoverMode" value="off"><span class="tile-title">Never on hover</span><span class="tile-desc">select text or right-click instead</span></label>
+          </div>
+          <p class="hint">Turn hover on or off quickly with <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>H</kbd> (change the shortcut at chrome://extensions/shortcuts).</p>
         </div>
-      </div>
-      <div class="field">
-        <label>Dịch gì khi rê chuột</label>
-        <div class="options">
-          <label><input type="radio" name="hoverTarget" value="sentence"> Cả câu dưới con trỏ (như tudienjp)</label>
-          <label><input type="radio" name="hoverTarget" value="both"> Câu + nghĩa của từ dưới con trỏ</label>
-          <label><input type="radio" name="hoverTarget" value="word"> Chỉ từ dưới con trỏ (từ điển offline)</label>
+
+        <div class="group">
+          <div class="q" id="q-dich-gi">What does hovering translate?</div>
+          <div class="tiles wide" role="radiogroup" aria-labelledby="q-dich-gi">
+            <label class="tile"><input type="radio" name="hoverTarget" value="sentence"><span class="tile-title">The whole sentence</span><span class="tile-desc">read fast, get the gist</span></label>
+            <label class="tile"><input type="radio" name="hoverTarget" value="both"><span class="tile-title">Sentence and word</span><span class="tile-desc">with a button to save the word</span></label>
+            <label class="tile"><input type="radio" name="hoverTarget" value="word"><span class="tile-title">Only the word</span><span class="tile-desc">built-in dictionary, works offline</span></label>
+          </div>
+          <p class="hint">Tip: hold <kbd>Shift</kbd> while hovering to switch between sentence and word for a moment. Selecting or double-clicking always looks up the word.</p>
         </div>
-        <p class="muted small">Giữ <kbd>Shift</kbd> trong lúc rê chuột để tạm đổi giữa câu và từ. Bôi đen hoặc nháy đúp luôn tra từ.</p>
-      </div>
-      <div class="field">
-        <label for="hoverDelay">Thời gian chờ trước khi hiện: <b id="hoverDelayValue">300</b> ms</label>
-        <input type="range" id="hoverDelay" min="150" max="1500" step="50">
-      </div>
-      <label class="check"><input type="checkbox" id="skipCommonWords"> Bỏ qua từ quá thông dụng (the, and, people…) khi rê chuột</label>
-      <p class="muted small">Phím tắt bật / tắt nhanh: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> (đổi tại chrome://extensions/shortcuts).</p>
-    </section>
 
-    <section class="card">
-      <h2>Bôi đen</h2>
-      <div class="options">
-        <label><input type="radio" name="selectionMode" value="auto"> Dịch ngay khi bôi đen</label>
-        <label><input type="radio" name="selectionMode" value="button"> Hiện nút nhỏ, bấm mới dịch</label>
-        <label><input type="radio" name="selectionMode" value="off"> Tắt</label>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Popup</h2>
-      <label class="check"><input type="checkbox" id="showIpa"> Hiện phiên âm IPA</label>
-      <label class="check"><input type="checkbox" id="showDefinition"> Hiện định nghĩa tiếng Anh ngắn</label>
-      <div class="field">
-        <label for="popupTheme">Giao diện popup</label>
-        <select class="input narrow" id="popupTheme">
-          <option value="auto">Theo hệ thống</option>
-          <option value="light">Sáng</option>
-          <option value="dark">Tối</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="targetLang">Ngôn ngữ dịch sang (mã ISO)</label>
-        <input class="input narrow" id="targetLang" placeholder="vi">
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>AI giải thích (Gemini)</h2>
-      <p class="muted small">Chỉ chạy khi bạn lưu từ, không chạy khi rê chuột. Lấy key miễn phí tại
-        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.</p>
-      <div class="field">
-        <label for="geminiApiKey">API key</label>
-        <div class="row">
-          <input class="input" id="geminiApiKey" type="password" placeholder="AIza…" autocomplete="off">
-          <button class="btn" id="btn-show-key" type="button">Hiện</button>
-          <button class="btn" id="btn-test-key" type="button">Kiểm tra</button>
+        <div class="group tight">
+          <div class="range-head">
+            <label class="q" for="hoverDelay">How long to wait before it appears?</label>
+            <output class="range-value" id="hoverDelayValue" for="hoverDelay">0.3 seconds</output>
+          </div>
+          <div class="range-row">
+            <span>Short</span>
+            <input type="range" id="hoverDelay" min="150" max="1500" step="50">
+            <span>Long</span>
+          </div>
         </div>
-        <div class="muted small" id="test-result"></div>
-      </div>
-      <div class="field">
-        <label for="geminiModel">Model</label>
-        <input class="input narrow" id="geminiModel" list="models" placeholder="gemini-2.5-flash">
-        <datalist id="models">
-          <option value="gemini-2.5-flash"></option>
-          <option value="gemini-2.5-flash-lite"></option>
-          <option value="gemini-2.5-pro"></option>
-          <option value="gemini-2.0-flash"></option>
-        </datalist>
-      </div>
-      <label class="check"><input type="checkbox" id="autoEnrich"> Tự động chạy AI cho từ mới lưu</label>
-    </section>
 
-    <section class="card">
-      <h2>Trang web bị tắt</h2>
-      <p class="muted small">Mỗi dòng một hostname, ví dụ <code>mail.google.com</code>. Bạn cũng có thể bật / tắt từ popup của extension.</p>
-      <textarea class="input" id="disabledSites" rows="4"></textarea>
-    </section>
+        <label class="switch-row divided">
+          <span class="switch-text">
+            <span class="t" id="t-skipCommonWords">Skip very common words</span>
+            <span class="d" id="d-skipCommonWords">No lookup for the, and, people… when hovering.</span>
+          </span>
+          <span class="switch"><input type="checkbox" role="switch" id="skipCommonWords" aria-labelledby="t-skipCommonWords" aria-describedby="d-skipCommonWords"><span class="switch-track" aria-hidden="true"></span></span>
+        </label>
+      </section>
 
-    <section class="card" id="backend-section">
-      <h2>Tài khoản ReadLex (đồng bộ với web)</h2>
-      <p class="muted small">Đăng nhập để từ bạn lưu được gửi lên server, AI giải nghĩa bằng Gemini key của bạn, và ôn tập trên web / điện thoại.</p>
-      <div id="backend-logged-out">
-        <div class="field" id="backend-url-field"><label for="backendUrl">Địa chỉ server</label><input class="input" id="backendUrl" placeholder="https://readlex-api.xxx.workers.dev"><span class="muted small">Thử local: http://localhost:8787</span></div>
-        <div class="field"><label for="backendEmail">Email</label><input class="input narrow" id="backendEmail" type="email" autocomplete="email"></div>
-        <div class="field"><label for="backendPassword">Mật khẩu</label><input class="input narrow" id="backendPassword" type="password" autocomplete="current-password"></div>
-        <div class="field hidden" id="invite-field"><label for="backendInvite">Mã mời</label><input class="input narrow" id="backendInvite" placeholder="Hỏi người quản trị server"></div>
-        <div class="row">
-          <button class="btn primary" id="btn-backend-login" type="button">Đăng nhập</button>
-          <button class="btn" id="btn-backend-register" type="button">Đăng ký tài khoản mới</button>
+      <section class="card panel" id="boi-den" aria-labelledby="q-boi-den">
+        <h2 id="q-boi-den">On selection</h2>
+        <div class="tiles wide" role="radiogroup" aria-labelledby="q-boi-den">
+          <label class="tile"><input type="radio" name="selectionMode" value="auto"><span class="tile-title">Translate right away</span><span class="tile-desc">the meaning appears as you select</span></label>
+          <label class="tile"><input type="radio" name="selectionMode" value="button"><span class="tile-title">Show a small button</span><span class="tile-desc">translates when you press it</span></label>
+          <label class="tile"><input type="radio" name="selectionMode" value="off"><span class="tile-title">Do nothing</span><span class="tile-desc">right-click still works</span></label>
         </div>
-      </div>
-      <div id="backend-logged-in" class="hidden">
-        <p>Đang đăng nhập: <b id="backend-email-label"></b> <button class="btn small" id="btn-backend-logout" type="button">Đăng xuất</button></p>
-        <div class="field">
-          <label for="geminiServerKey">Gemini key của bạn (lưu mã hóa trên server) <span class="badge" id="gemini-server-status"></span></label>
-          <div class="row"><input class="input" id="geminiServerKey" type="password" placeholder="AIza…" autocomplete="off"><button class="btn" id="btn-gemini-server-save" type="button">Kiểm tra & lưu</button></div>
-          <span class="muted small">Lấy miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>. Mỗi người dùng key riêng của mình.</span>
-        </div>
-        <label class="check"><input type="checkbox" id="serverEnrich"> AI chạy trên server (tắt nếu muốn dùng key cục bộ ở mục trên)</label>
-        <div class="row">
-          <button class="btn" id="btn-backend-import" type="button">Đẩy toàn bộ dữ liệu lên server</button>
-          <button class="btn" id="btn-backend-flush" type="button">Đồng bộ ngay</button>
-        </div>
-      </div>
-      <div class="muted small" id="backend-status"></div>
-    </section>
+      </section>
 
-    <details class="card">
-      <summary><h2>Nâng cao</h2></summary>
-      <div class="row">
-        <button class="btn" id="btn-clear-cache" type="button">Xóa cache dịch</button>
-        <button class="btn danger" id="btn-clear-all" type="button">Xóa toàn bộ dữ liệu</button>
-      </div>
-    </details>
+      <section class="card panel" id="hop-tra-tu" aria-labelledby="h-hop-tra-tu">
+        <div class="panel-head">
+          <h2 id="h-hop-tra-tu">Lookup popup</h2>
+          <p class="muted">The small box that appears on the page when you look up a word.</p>
+        </div>
+        <label class="switch-row">
+          <span class="switch-text">
+            <span class="t" id="t-showIpa">Show pronunciation</span>
+            <span class="d" id="d-showIpa">How the word is said, for example /ˈtærɪf/.</span>
+          </span>
+          <span class="switch"><input type="checkbox" role="switch" id="showIpa" aria-labelledby="t-showIpa" aria-describedby="d-showIpa"><span class="switch-track" aria-hidden="true"></span></span>
+        </label>
+        <label class="switch-row">
+          <span class="switch-text">
+            <span class="t" id="t-showDefinition">Show a short English definition</span>
+            <span class="d" id="d-showDefinition">One line of explanation or an example in English, under the translated meaning.</span>
+          </span>
+          <span class="switch"><input type="checkbox" role="switch" id="showDefinition" aria-labelledby="t-showDefinition" aria-describedby="d-showDefinition"><span class="switch-track" aria-hidden="true"></span></span>
+        </label>
+        <div class="fields two divided">
+          <div class="field">
+            <label for="popupTheme">Popup color</label>
+            <select class="input" id="popupTheme">
+              <option value="auto">Match system</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="targetLang">Translate into</label>
+            <select class="input" id="targetLang">
+              <option value="vi">Vietnamese</option>
+              <option value="en">English</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="zh-CN">Chinese (Simplified)</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="es">Spanish</option>
+            </select>
+          </div>
+        </div>
+      </section>
 
-    <p class="muted small status" id="status">Thay đổi được lưu tự động.</p>
+      <section class="card panel" id="ai" aria-labelledby="h-ai">
+        <div class="panel-head">
+          <h2 id="h-ai">AI explanations</h2>
+          <p class="muted">After you save a word, Gemini explains what it means in the sentence you were reading. AI never runs on hover.</p>
+        </div>
+
+        <div class="key-ok hidden" id="ai-key-ok">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+          <div class="key-ok-text">
+            <span class="t">Gemini key is working</span>
+            <span class="d" id="ai-key-ok-detail"></span>
+          </div>
+          <button type="button" class="btn" id="btn-change-key">Change key</button>
+        </div>
+
+        <p class="key-source" id="ai-key-source"></p>
+
+        <div class="key-fields" id="ai-key-fields">
+          <div class="field hidden" id="ai-server-field">
+            <label for="geminiServerKey">Gemini key in your ReadLex account <span class="badge" id="gemini-server-status"></span></label>
+            <div class="input-row">
+              <input class="input" id="geminiServerKey" type="password" placeholder="AIza…" autocomplete="off" aria-describedby="ai-server-help">
+              <button class="btn" id="btn-gemini-server-save" type="button">Test and save</button>
+            </div>
+            <p class="hint" id="ai-server-help">The key is encrypted and stored on the server, and used by both the extension and the review web app. Each person uses their own key.</p>
+            <p class="hint" id="gemini-server-result" role="status"></p>
+          </div>
+
+          <div class="field" id="ai-local-field">
+            <label for="geminiApiKey">Gemini key on this device <span class="badge hidden" id="ai-local-badge"></span></label>
+            <div class="input-row">
+              <input class="input" id="geminiApiKey" type="password" placeholder="AIza…" autocomplete="off" aria-describedby="ai-local-help">
+              <button class="btn" id="btn-show-key" type="button">Show</button>
+              <button class="btn" id="btn-test-key" type="button">Test</button>
+            </div>
+            <p class="hint" id="ai-local-help"><span id="ai-local-note">The key is stored only in this browser.</span> Get a free key at
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.</p>
+            <p class="hint" id="test-result" role="status"></p>
+          </div>
+        </div>
+
+        <label class="switch-row hidden" id="server-enrich-row">
+          <span class="switch-text">
+            <span class="t" id="t-serverEnrich">Run AI on the server</span>
+            <span class="d" id="d-serverEnrich">Uses the key in your account. Turn off to use the key on this device.</span>
+          </span>
+          <span class="switch"><input type="checkbox" role="switch" id="serverEnrich" aria-labelledby="t-serverEnrich" aria-describedby="d-serverEnrich"><span class="switch-track" aria-hidden="true"></span></span>
+        </label>
+
+        <label class="switch-row">
+          <span class="switch-text">
+            <span class="t" id="t-autoEnrich">Explain new words automatically</span>
+            <span class="d" id="d-autoEnrich">Turn off if you prefer to press “Run AI” on the Vocabulary page yourself.</span>
+          </span>
+          <span class="switch"><input type="checkbox" role="switch" id="autoEnrich" aria-labelledby="t-autoEnrich" aria-describedby="d-autoEnrich"><span class="switch-track" aria-hidden="true"></span></span>
+        </label>
+
+        <div class="field divided">
+          <label for="geminiModel">Gemini model</label>
+          <input class="input narrow" id="geminiModel" list="models" placeholder="gemini-2.5-flash" aria-describedby="model-help">
+          <datalist id="models">
+            <option value="gemini-2.5-flash"></option>
+            <option value="gemini-2.5-flash-lite"></option>
+            <option value="gemini-2.5-pro"></option>
+            <option value="gemini-2.0-flash"></option>
+          </datalist>
+          <p class="hint" id="model-help">If you are not sure, keep gemini-2.5-flash.</p>
+        </div>
+      </section>
+
+      <section class="card panel" id="backend-section" aria-labelledby="h-tai-khoan">
+        <div class="panel-head">
+          <h2 id="h-tai-khoan">Account &amp; sync</h2>
+          <p class="muted">Sign in so the words you save here are also in the review web app, on your phone too.</p>
+        </div>
+
+        <div class="login" id="backend-logged-out">
+          <div class="field" id="backend-url-field">
+            <label for="backendUrl">Server address</label>
+            <input class="input" id="backendUrl" type="url" inputmode="url" placeholder="https://readlex-api.xxx.workers.dev" aria-describedby="backend-url-help">
+            <p class="hint" id="backend-url-help">To try it locally: http://localhost:8787</p>
+          </div>
+          <div class="fields two">
+            <div class="field"><label for="backendEmail">Email</label><input class="input" id="backendEmail" type="email" autocomplete="email"></div>
+            <div class="field"><label for="backendPassword">Password</label><input class="input" id="backendPassword" type="password" autocomplete="current-password"></div>
+          </div>
+          <div class="field hidden" id="invite-field"><label for="backendInvite">Invite code</label><input class="input narrow" id="backendInvite" placeholder="Ask the server admin"></div>
+          <div class="actions">
+            <button class="btn primary" id="btn-backend-login" type="button">Sign in</button>
+            <button class="btn" id="btn-backend-register" type="button">Create account</button>
+          </div>
+        </div>
+
+        <div id="backend-logged-in" class="account hidden">
+          <div class="account-row">
+            <span class="avatar" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span>
+            <div class="account-text">
+              <span class="sr-only">Signed in as:</span>
+              <b id="backend-email-label"></b>
+              <span class="d" id="backend-sync-line"></span>
+            </div>
+            <button class="btn" id="btn-backend-flush" type="button">Sync now</button>
+            <button class="link-btn" id="btn-backend-logout" type="button">Sign out</button>
+          </div>
+          <div class="action-row divided">
+            <span class="switch-text">
+              <span class="t">Upload all data to the server</span>
+              <span class="d">Use this once if you saved words before signing in. The server skips duplicates.</span>
+            </span>
+            <button class="btn" id="btn-backend-import" type="button">Upload</button>
+          </div>
+        </div>
+
+        <p class="hint" id="backend-status" role="status"></p>
+      </section>
+
+      <section class="card panel" id="trang-da-tat" aria-labelledby="h-trang-da-tat">
+        <div class="panel-head">
+          <h2 id="h-trang-da-tat">Disabled sites</h2>
+          <p class="muted" id="disabled-help">ReadLex does not run on these sites. One domain per line, for example <code>mail.google.com</code>. You can also turn a site on or off in the extension popup.</p>
+        </div>
+        <textarea class="input" id="disabledSites" rows="4" aria-labelledby="h-trang-da-tat" aria-describedby="disabled-help" spellcheck="false"></textarea>
+      </section>
+
+      <section class="card panel" id="nang-cao" aria-labelledby="h-nang-cao">
+        <h2 id="h-nang-cao">Advanced</h2>
+        <div class="action-row">
+          <span class="switch-text">
+            <span class="t">Clear translation cache</span>
+            <span class="d">Removes cached translations. Your vocabulary stays as it is.</span>
+          </span>
+          <button class="btn" id="btn-clear-cache" type="button">Clear cache</button>
+        </div>
+        <div class="action-row divided">
+          <span class="switch-text">
+            <span class="t">Delete all data</span>
+            <span class="d">Deletes all vocabulary, sentences and lookup history on this device. This cannot be undone, so back up first.</span>
+          </span>
+          <button class="btn danger" id="btn-clear-all" type="button">Delete all data</button>
+        </div>
+      </section>
+
+    </div>
   </main>
   <script type="module" src="options.js"></script>
 </body>

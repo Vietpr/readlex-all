@@ -8,8 +8,6 @@ import { DeleteWordButton } from '../components/DeleteWord';
 import { AiNotice, LanguageSelect, WordInsight, WordRowsEditor, blankRows, filledRows, saveWordRows, useWordRows, type Insight, type Lang } from '../components/WordRows';
 import type { CustomSet, DailySet, Vocabulary } from '../types';
 
-export type LibraryTab = 'all' | 'sets' | 'my';
-
 export function WordRow({ v, onDeleted }: { v: Vocabulary; onDeleted?: () => void }) {
   const e = v.enrichment;
   const open = () => navigate(`/library/${v.id}`);
@@ -17,13 +15,13 @@ export function WordRow({ v, onDeleted }: { v: Vocabulary; onDeleted?: () => voi
     <li className={onDeleted ? 'with-action' : undefined} onClick={onDeleted ? undefined : open}>
       <span className="w" onClick={open}>{v.lemma}{v.reading ? <span className="muted"> {v.reading}</span> : null}</span>
       <span className="m" onClick={open}>{v.userMeaning || e?.meaningInContext || e?.meaningVi || v.quickMeaning || ''}</span>
-      <span className="meta" onClick={open}>{[e?.cefr || e?.level, v.exposureCount > 1 ? `seen ${v.exposureCount}×` : '', relativeTime(v.createdAt)].filter(Boolean).join(' · ')}</span>
+      <span className="meta" onClick={open}>{[v.exposureCount > 1 ? `seen ${v.exposureCount}×` : '', relativeTime(v.createdAt)].filter(Boolean).join(' · ')}</span>
       {onDeleted && <DeleteWordButton id={v.id} lemma={v.lemma} onDeleted={onDeleted} />}
     </li>
   );
 }
 
-export function Library({ tab }: { tab: LibraryTab }) {
+export function Library() {
   const route = useRoute();
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(route.query.get('add') === '1');
@@ -40,18 +38,7 @@ export function Library({ tab }: { tab: LibraryTab }) {
         <button className="btn" onClick={() => setAdding((v) => !v)}><Icon name="plus" size={18} />Add word</button>
       </div>
       {adding && <AddWord onDone={(id) => { setAdding(false); if (id) navigate(`/library/${id}`); }} />}
-      {searching ? <SearchResults query={query} /> : (
-        <>
-          <div className="tabs" role="tablist">
-            <a href="#/library" className={tab === 'all' ? 'active' : ''}>All Sets</a>
-            <a href="#/library/sets" className={tab === 'sets' ? 'active' : ''}>Daily Sets</a>
-            <a href="#/library/my" className={tab === 'my' ? 'active' : ''}>My Sets</a>
-          </div>
-          {tab === 'all' && <><MySets /><h2>Daily Sets</h2><DailySets /></>}
-          {tab === 'sets' && <DailySets />}
-          {tab === 'my' && <MySets />}
-        </>
-      )}
+      {searching ? <SearchResults query={query} /> : <div className="library-cols"><section><h2>My Sets</h2><MySets /></section><section><h2>Daily Sets</h2><DailySets /></section></div>}
     </div>
   );
 }

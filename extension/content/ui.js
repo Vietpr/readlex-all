@@ -15,100 +15,127 @@ class ReadLexUI {
   }
 
   static get CSS() {
+    // "Highlighter" look. No web fonts here: this runs inside arbitrary pages.
+    const dark = `--paper: #1D232B; --fg: #EEF0EA; --muted: #A9B1BA; --line: #333B45; --edge: #3D4651; --ground: #2A313B;
+            --control: #4A5461; --danger: #FF9BAC; --shadow: 0 14px 36px rgba(0, 0, 0, .55);`;
     return `
       :host { all: initial; }
       *, *::before, *::after { box-sizing: border-box; }
-      .rl { --bg: #ffffff; --fg: #1f2937; --muted: #6b7280; --border: #e5e7eb; --accent: #4f46e5;
-            --accent-fg: #ffffff; --accent-soft: #eef2ff; --shadow: 0 10px 30px rgba(15, 23, 42, .18);
-            font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: var(--fg); -webkit-font-smoothing: antialiased; }
-      .rl[data-theme="dark"] { --bg: #1e2230; --fg: #e5e7eb; --muted: #9ca3af; --border: #363c4e; --accent: #8b8cf8;
-            --accent-fg: #0f1020; --accent-soft: #2b2f57; --shadow: 0 10px 30px rgba(0, 0, 0, .5); }
-      @media (prefers-color-scheme: dark) {
-        .rl[data-theme="auto"] { --bg: #1e2230; --fg: #e5e7eb; --muted: #9ca3af; --border: #363c4e; --accent: #8b8cf8;
-            --accent-fg: #0f1020; --accent-soft: #2b2f57; --shadow: 0 10px 30px rgba(0, 0, 0, .5); }
-      }
-      .rl-popup { position: fixed; z-index: 2147483647; min-width: 200px; max-width: 360px; background: var(--bg);
-            border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 10px 12px 9px;
-            animation: rl-in .12s ease-out; }
+      .rl { --paper: #FFFFFF; --fg: #17202B; --muted: #515C69; --line: #E2E5DE; --edge: #D5D9D0; --ground: #F3F4EF;
+            --control: #C9CEC3; --danger: #A8243D; --shadow: 0 14px 36px rgba(23, 32, 43, .2);
+            --serif: Georgia, "Times New Roman", serif;
+            font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+            color: var(--fg); text-align: left; -webkit-font-smoothing: antialiased; }
+      .rl[data-theme="dark"] { ${dark} }
+      @media (prefers-color-scheme: dark) { .rl[data-theme="auto"] { ${dark} } }
+
+      .rl-popup { position: fixed; z-index: 2147483647; display: flex; flex-direction: column; gap: 12px; width: max-content;
+            max-width: min(380px, calc(100vw - 16px)); padding: 16px 18px 14px; background: var(--paper);
+            border: 1px solid var(--edge); border-radius: 16px; box-shadow: var(--shadow); animation: rl-in .12s ease-out; }
       .rl-popup[hidden] { display: none; }
-      .rl { --sent-bg: #e9f4fc; --sent-border: #bcdcf2; }
-      .rl[data-theme="dark"] { --sent-bg: #1b2a3a; --sent-border: #2f4a64; }
-      @media (prefers-color-scheme: dark) { .rl[data-theme="auto"] { --sent-bg: #1b2a3a; --sent-border: #2f4a64; } }
-      .rl-popup.rl-sent { max-width: 460px; background: var(--sent-bg); border-color: var(--sent-border); }
-      .rl-sent-text { font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; }
-      .rl-sent-word { margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--sent-border); display: flex; gap: 6px 8px;
-            align-items: baseline; flex-wrap: wrap; font-size: 13px; }
-      .rl-sent-word .rl-word { font-size: 14px; }
-      .rl-sent-word .rl-meaning { flex: 1 1 100%; }
-      .rl-sent-word .rl-save { margin-left: auto; }
+      .rl-popup.rl-card { min-width: min(300px, calc(100vw - 16px)); }
+      .rl-popup.rl-sent { max-width: min(460px, calc(100vw - 16px)); padding: 16px 18px; font-size: 16px; line-height: 1.55; }
       @keyframes rl-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
-      .rl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-      .rl-word { font-weight: 700; font-size: 16px; color: var(--accent); word-break: break-word; }
-      .rl-word.rl-phrase { font-size: 14px; color: var(--fg); font-weight: 600; }
-      .rl-ipa { color: var(--muted); font-size: 13px; }
-      .rl-spacer { flex: 1; }
-      .rl-icon { border: 0; background: transparent; cursor: pointer; padding: 2px 4px; border-radius: 6px;
-            color: var(--muted); display: inline-flex; align-items: center; font: inherit; line-height: 1; }
-      .rl-icon:hover { background: var(--accent-soft); color: var(--accent); }
-      .rl-icon svg { width: 16px; height: 16px; fill: currentColor; }
-      .rl-save { border: 1px solid var(--border); background: transparent; color: var(--fg); border-radius: 999px;
-            padding: 3px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-      .rl-save:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-      .rl-save.rl-saved { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-      .rl-trans { margin-top: 6px; font-size: 15px; font-weight: 600; word-break: break-word; }
-      .rl-dict { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
-      .rl-row { display: flex; gap: 8px; font-size: 13px; }
-      .rl-pos { color: var(--muted); font-style: italic; min-width: 34px; max-width: 110px; flex-shrink: 0; }
-      .rl-pos.rl-field { color: var(--accent); font-style: normal; font-size: 12px; }
-      .rl-base { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-      .rl-def { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); color: var(--muted);
-            font-size: 12.5px; }
-      .rl-foot { margin-top: 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 11.5px;
-            color: var(--muted); }
-      .rl-foot .rl-ok { color: var(--accent); font-weight: 600; }
-      .rl-error { color: #dc2626; font-size: 13px; margin-top: 4px; }
-      .rl-reading { color: var(--muted); font-size: 13.5px; }
+
+      .rl-head { display: flex; flex-direction: column; gap: 2px; }
+      .rl-headrow { display: flex; align-items: center; gap: 10px; }
+      .rl-title { flex: 1; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+      .rl-word { min-width: 0; font-family: var(--serif); font-size: 25px; line-height: 1.25; font-weight: 600; overflow-wrap: anywhere; }
+      .rl-word.rl-phrase { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden;
+            font-size: 17px; line-height: 1.45; font-weight: 400; }
+      .rl-reading { color: var(--muted); font-size: 15px; }
+      .rl-sub { color: var(--muted); font-size: 13.5px; overflow-wrap: anywhere; }
+      .rl-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+            padding: 0; border: 0; border-radius: 50%; background: var(--ground); color: var(--fg); cursor: pointer; }
+      .rl-icon:hover { background: var(--line); }
+
+      .rl-body { display: flex; flex-direction: column; gap: 8px; }
+      .rl-trans, .rl-vi { font-size: 19px; line-height: 1.35; font-weight: 700; overflow-wrap: anywhere; }
+      .rl-trans.rl-long { font-size: 16px; line-height: 1.45; font-weight: 600; }
+      .rl-dict { display: flex; flex-direction: column; gap: 4px; font-size: 14.5px; }
+      .rl-row, .rl-sense { display: flex; gap: 10px; font-size: 14.5px; }
+      .rl-pos { flex: none; min-width: 62px; max-width: 110px; color: var(--muted); font-style: italic; }
+      .rl-pos:empty { display: none; }
+      .rl-pos.rl-field { font-style: normal; font-size: 13px; }
+      .rl-def { padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13.5px; }
+      .rl-error { color: var(--danger); font-size: 14px; }
+
       .rl-trail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-      .rl-trail span { font-size: 11px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 1px 7px; }
-      .rl-vi { margin-top: 6px; font-size: 15px; font-weight: 600; }
-      .rl-sense { display: flex; gap: 8px; font-size: 13px; margin-top: 3px; }
+      .rl-trail span { padding: 1px 8px; border-radius: 999px; background: var(--ground); color: var(--fg); font-size: 12px; font-weight: 600; }
+      .rl-entry { display: flex; flex-direction: column; gap: 4px; }
+      .rl-entry + .rl-entry { padding-top: 10px; border-top: 1px solid var(--line); }
+      .rl-entry .rl-hw { font-family: var(--serif); font-size: 17px; font-weight: 600; }
+      .rl-entry + .rl-entry .rl-vi { font-size: 16px; }
       .rl-sense .rl-pos { min-width: 0; }
-      .rl-entry + .rl-entry { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
-      .rl-entry .rl-hw { font-weight: 700; color: var(--accent); }
-      .rl-kanji { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 12.5px; color: var(--muted); }
-      .rl-kanji b { color: var(--fg); font-size: 15px; margin-right: 6px; }
-      .rl-loading { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-      .rl-spin { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent);
+      .rl-kanji { padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13.5px; }
+      .rl-kanji b { margin-right: 8px; color: var(--fg); font-size: 18px; font-weight: 600; }
+
+      .rl-actions { display: flex; flex-direction: column; gap: 8px; }
+      .rl-foot { color: var(--muted); font-size: 12.5px; text-align: center; }
+      .rl-save { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px;
+            background: #FFE45C; box-shadow: inset 0 -3px 0 #E3C22B; color: #17202B; font: inherit; font-weight: 700;
+            white-space: nowrap; cursor: pointer; }
+      .rl-save.rl-block { width: 100%; min-height: 46px; font-size: 16px; }
+      .rl-save.rl-pill { flex: none; gap: 6px; min-height: 38px; padding: 0 14px; font-size: 14px; }
+      .rl-save:hover { background: #FFEB85; }
+      .rl-save.rl-saved { border: 1.5px solid var(--fg); background: var(--paper); box-shadow: none; color: var(--fg); font-weight: 600; }
+      .rl-save.rl-saved:hover { background: var(--ground); }
+      .rl-save:disabled { opacity: .6; cursor: default; }
+      .rl-save:focus-visible, .rl-icon:focus-visible, .rl-btn:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+
+      .rl-sent-text { white-space: pre-wrap; overflow-wrap: anywhere; text-wrap: pretty; }
+      .rl-sent-word { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+      .rl-sent-info { flex: 1; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; }
+      .rl-sent-word .rl-word { font-size: 18px; line-height: 1.35; }
+      .rl-sent-word .rl-reading, .rl-ipa { color: var(--muted); font-size: 13.5px; }
+      .rl-sent-word .rl-meaning { font-size: 15px; line-height: 1.45; }
+      .rl-sent-word .rl-icon { width: 36px; height: 36px; }
+      .rl-shift { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+      .rl-shift kbd { padding: 0 7px; border: 1px solid var(--control); border-radius: 6px; background: var(--ground);
+            color: var(--fg); font: inherit; font-size: 12px; font-weight: 600; }
+
+      .rl-loading { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+      .rl-spin { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--fg);
             border-radius: 50%; animation: rl-spin .7s linear infinite; }
       @keyframes rl-spin { to { transform: rotate(360deg); } }
-      .rl-btn { position: fixed; z-index: 2147483647; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
-            background: var(--bg); color: var(--accent); box-shadow: var(--shadow); cursor: pointer; display: flex;
-            align-items: center; justify-content: center; padding: 0; }
+
+      .rl-btn { position: fixed; z-index: 2147483647; display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; padding: 0; border: 1px solid var(--edge); border-radius: 50%; background: var(--paper);
+            color: var(--fg); box-shadow: 0 6px 18px rgba(23, 32, 43, .22); cursor: pointer; }
       .rl-btn[hidden] { display: none; }
-      .rl-btn svg { width: 18px; height: 18px; fill: currentColor; }
-      .rl-btn:hover { background: var(--accent-soft); }
-      .rl-toast { position: fixed; z-index: 2147483647; right: 16px; bottom: 16px; background: var(--fg); color: var(--bg);
-            padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); font-size: 13px; display: flex; gap: 12px;
-            align-items: center; max-width: 360px; animation: rl-in .15s ease-out; }
-      .rl[data-theme="dark"] .rl-toast { background: #f3f4f6; color: #111827; }
-      @media (prefers-color-scheme: dark) { .rl[data-theme="auto"] .rl-toast { background: #f3f4f6; color: #111827; } }
+      .rl-btn:hover { background: #FFE45C; border-color: #E3C22B; color: #17202B; }
+
+      .rl-toast { position: fixed; z-index: 2147483647; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 12px;
+            min-height: 48px; max-width: min(420px, calc(100vw - 32px)); padding: 6px 14px;
+            border: 1px solid rgba(255, 255, 255, .16); border-radius: 14px; background: #17202B; color: #FFFFFF;
+            box-shadow: 0 10px 28px rgba(23, 32, 43, .3); font-size: 14px; line-height: 1.4; animation: rl-in .15s ease-out; }
       .rl-toast[hidden] { display: none; }
-      .rl-toast button { border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer;
-            text-decoration: underline; padding: 0; }
+      .rl-toast.rl-has-action { padding-right: 8px; }
+      .rl-toast svg { flex: none; color: #FFE45C; }
+      .rl-toast button { flex: none; min-height: 36px; padding: 0 10px; border: 0; border-radius: 10px; background: none;
+            color: #FFE45C; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+      .rl-toast button:focus-visible { outline: 3px solid #FFE45C; outline-offset: 1px; }
+      @media (prefers-reduced-motion: reduce) { .rl-popup, .rl-toast { animation: none; } }
     `;
   }
 
-  static icon(name) {
+  // Inline stroke icons (24px grid, currentColor).
+  static icon(name, size = 18, strokeWidth = 2) {
     const paths = {
-      audio: 'M3 9v6h4l5 4V5L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.47 4.47 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23z',
-      translate: 'M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z',
+      audio: ['M11 5 6 9H3v6h3l5 4z', 'M15.5 8.5a5 5 0 0 1 0 7', 'M18.5 5.5a9 9 0 0 1 0 13'],
+      translate: ['M5 8l6 6', 'M4 14l6-6 2-3', 'M2 5h12', 'M7 2h1', 'M22 22l-5-10-5 10', 'M14 18h6'],
+      bookmark: ['M6 3h12v18l-6-4.5L6 21z'],
+      check: ['M5 12.5l4.5 4.5L19 7.5'],
     };
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', paths[name]);
-    svg.appendChild(path);
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    const attrs = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': strokeWidth, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+    for (const [k, v] of Object.entries(attrs)) svg.setAttribute(k, v);
+    for (const d of paths[name] || []) {
+      const path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', d);
+      svg.appendChild(path);
+    }
     return svg;
   }
 
@@ -122,17 +149,23 @@ class ReadLexUI {
     style.textContent = ReadLexUI.CSS;
     this.wrap = document.createElement('div');
     this.wrap.className = 'rl';
+    this.wrap.lang = 'en';
     this.wrap.dataset.theme = this.theme;
     this.popup = document.createElement('div');
     this.popup.className = 'rl-popup';
+    this.popup.setAttribute('role', 'dialog');
+    this.popup.setAttribute('aria-label', 'ReadLex');
     this.popup.hidden = true;
     this.button = document.createElement('button');
+    this.button.type = 'button';
     this.button.className = 'rl-btn';
-    this.button.title = 'Dịch đoạn đã chọn (ReadLex)';
+    this.button.title = 'Translate selection (ReadLex)';
+    this.button.setAttribute('aria-label', 'Translate selection (ReadLex)');
     this.button.hidden = true;
-    this.button.appendChild(ReadLexUI.icon('translate'));
+    this.button.appendChild(ReadLexUI.icon('translate', 20));
     this.toast = document.createElement('div');
     this.toast.className = 'rl-toast';
+    this.toast.setAttribute('role', 'status');
     this.toast.hidden = true;
     this.wrap.append(this.popup, this.button, this.toast);
     this.root.append(style, this.wrap);
@@ -170,19 +203,38 @@ class ReadLexUI {
     el.style.visibility = '';
   }
 
+  // kind: '' (loading) | 'card' (word popup) | 'sent' (sentence box)
+  resetPopup(kind, label) {
+    this.popup.classList.toggle('rl-card', kind === 'card');
+    this.popup.classList.toggle('rl-sent', kind === 'sent');
+    this.popup.setAttribute('aria-label', label);
+    this.popup.replaceChildren();
+    return this.popup;
+  }
+
   showLoading(rect) {
     this.ensure();
     this.hideSelectionButton();
-    this.popup.classList.remove('rl-sent');
-    this.popup.replaceChildren();
+    this.resetPopup('', 'ReadLex');
     const box = document.createElement('div');
     box.className = 'rl-loading';
     const spin = document.createElement('div');
     spin.className = 'rl-spin';
-    box.append(spin, document.createTextNode('Đang dịch…'));
+    box.append(spin, document.createTextNode('Translating…'));
     this.popup.appendChild(box);
     this.place(this.popup, rect);
     this.visible = true;
+  }
+
+  audioButton(url) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'rl-icon';
+    btn.title = 'Play pronunciation';
+    btn.setAttribute('aria-label', 'Play pronunciation');
+    btn.appendChild(ReadLexUI.icon('audio', 19));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); this.play(url); });
+    return btn;
   }
 
   // data: LOOKUP result from the background; options: { pinned, showIpa, showDefinition, onSave, saved }
@@ -190,168 +242,204 @@ class ReadLexUI {
     this.ensure();
     this.hideSelectionButton();
     this.pinned = !!options.pinned;
-    this.popup.classList.remove('rl-sent');
-    this.popup.replaceChildren();
-    const p = this.popup;
+    const p = this.resetPopup('card', 'ReadLex word lookup');
 
+    // Headword: the dictionary form when the page shows an inflected one ("contemplating" -> contemplate).
+    const jaFirst = data.ja && data.ja.results && data.ja.results[0];
+    const viaLemma = !data.ja && !!data.offline && !!data.offline.viaLemma && data.offline.headword !== String(data.text || '').toLowerCase();
     const head = document.createElement('div');
     head.className = 'rl-head';
+    const headRow = document.createElement('div');
+    headRow.className = 'rl-headrow';
+    const title = document.createElement('div');
+    title.className = 'rl-title';
     const word = document.createElement('span');
     word.className = 'rl-word' + (data.isWord ? '' : ' rl-phrase');
-    const jaFirst = data.ja && data.ja.results && data.ja.results[0];
-    word.textContent = jaFirst ? jaFirst.headword : (data.ja && data.ja.kanji ? data.ja.kanji.literal : data.text);
-    head.appendChild(word);
+    word.lang = data.ja ? 'ja' : 'en';
+    word.textContent = jaFirst ? jaFirst.headword
+      : (data.ja && data.ja.kanji ? data.ja.kanji.literal : (viaLemma && data.isWord ? data.offline.headword : data.text));
+    title.appendChild(word);
     if (jaFirst && jaFirst.reading) {
       const rd = document.createElement('span');
       rd.className = 'rl-reading';
+      rd.lang = 'ja';
       rd.textContent = `【${jaFirst.reading}】`;
-      head.appendChild(rd);
+      title.appendChild(rd);
     }
+    headRow.appendChild(title);
+    if (data.isWord && data.audio) headRow.appendChild(this.audioButton(data.audio));
+    head.appendChild(headRow);
+
+    const sub = [];
     if (data.isWord && options.showIpa !== false && data.ipa) {
       const ipa = document.createElement('span');
       ipa.className = 'rl-ipa';
       ipa.textContent = data.ipa;
-      head.appendChild(ipa);
+      sub.push(ipa);
     }
-    if (data.isWord && data.audio) {
-      const btn = document.createElement('button');
-      btn.className = 'rl-icon';
-      btn.title = 'Nghe phát âm';
-      btn.appendChild(ReadLexUI.icon('audio'));
-      btn.addEventListener('click', (e) => { e.stopPropagation(); this.play(data.audio); });
-      head.appendChild(btn);
+    if (viaLemma) {
+      const base = document.createElement('span');
+      base.className = 'rl-base';
+      base.textContent = data.isWord ? `base form of “${data.text}”` : `base form: ${data.offline.headword}`;
+      sub.push(base);
     }
-    const spacer = document.createElement('span');
-    spacer.className = 'rl-spacer';
-    head.appendChild(spacer);
-    if (options.onSave) head.appendChild(this.saveButton(data.saved, options.onSave));
+    if (sub.length) {
+      const line = document.createElement('div');
+      line.className = 'rl-sub';
+      sub.forEach((node, i) => { if (i) line.appendChild(document.createTextNode(' · ')); line.appendChild(node); });
+      head.appendChild(line);
+    }
     p.appendChild(head);
+
+    const dictRow = (label, text, isField) => {
+      const row = document.createElement('div');
+      row.className = 'rl-row';
+      const pos = document.createElement('span');
+      pos.className = 'rl-pos' + (isField ? ' rl-field' : '');
+      pos.textContent = label || '';
+      const terms = document.createElement('span');
+      terms.textContent = text;
+      row.append(pos, terms);
+      return row;
+    };
 
     if (data.ja) {
       this.renderJapanese(p, data, head);
     } else if (data.error && !data.translation && !data.offline) {
       const err = document.createElement('div');
       err.className = 'rl-error';
-      err.textContent = `Không dịch được: ${data.error}`;
+      err.textContent = `Could not translate: ${data.error}`;
       p.appendChild(err);
     } else if (data.offline && data.offline.lines.length) {
-      // offline dictionary entry: "loại từ: nghĩa; nghĩa; nghĩa" per line
-      if (!data.isWord && data.translation) {
+      // offline dictionary entry: the first meaning large, then "loại từ: nghĩa; nghĩa; nghĩa" per line
+      const body = document.createElement('div');
+      body.className = 'rl-body';
+      if (data.translation) {
         const trans = document.createElement('div');
-        trans.className = 'rl-trans';
+        trans.className = 'rl-trans' + (data.translation.length > 60 ? ' rl-long' : '');
         trans.textContent = data.translation;
-        p.appendChild(trans);
-      }
-      if (data.offline.viaLemma && data.offline.headword !== data.text.toLowerCase()) {
-        const base = document.createElement('div');
-        base.className = 'rl-base';
-        base.textContent = `→ ${data.offline.headword}`;
-        p.appendChild(base);
+        body.appendChild(trans);
       }
       const dict = document.createElement('div');
       dict.className = 'rl-dict';
-      for (const line of data.offline.lines.slice(0, 4)) {
-        const row = document.createElement('div');
-        row.className = 'rl-row';
-        const pos = document.createElement('span');
-        pos.className = 'rl-pos' + (line.field ? ' rl-field' : '');
-        pos.textContent = line.label || '';
-        const text = document.createElement('span');
-        text.textContent = line.text;
-        row.append(pos, text);
-        dict.appendChild(row);
-      }
-      p.appendChild(dict);
+      const lines = data.offline.lines.slice(0, 4);
+      // A lone sense that only repeats the headline: keep just its part of speech.
+      const lone = lines.length === 1 && data.translation && lines[0].text === data.translation;
+      for (const line of lines) dict.appendChild(dictRow(line.label, lone ? '' : line.text, line.field));
+      if (!lone || lines[0].label) body.appendChild(dict);
+      p.appendChild(body);
       if (data.offline.example && options.showDefinition !== false) {
         const ex = document.createElement('div');
         ex.className = 'rl-def';
-        ex.textContent = data.offline.example.vi ? `${data.offline.example.en} → ${data.offline.example.vi}` : data.offline.example.en;
+        const en = document.createElement('div');
+        en.lang = 'en';
+        en.textContent = data.offline.example.en;
+        ex.appendChild(en);
+        if (data.offline.example.vi) {
+          const vi = document.createElement('div');
+          vi.textContent = data.offline.example.vi;
+          ex.appendChild(vi);
+        }
         p.appendChild(ex);
       }
     } else {
+      const body = document.createElement('div');
+      body.className = 'rl-body';
       const trans = document.createElement('div');
-      trans.className = 'rl-trans';
+      trans.className = 'rl-trans' + ((data.translation || '').length > 60 ? ' rl-long' : '');
       trans.textContent = data.translation || '—';
-      p.appendChild(trans);
+      body.appendChild(trans);
       const dictRows = (data.dict || []).filter((d) => d.terms && d.terms.length);
       if (dictRows.length) {
         const dict = document.createElement('div');
         dict.className = 'rl-dict';
-        for (const d of dictRows.slice(0, 4)) {
-          const row = document.createElement('div');
-          row.className = 'rl-row';
-          const pos = document.createElement('span');
-          pos.className = 'rl-pos';
-          pos.textContent = ReadLexUI.shortPos(d.pos);
-          const terms = document.createElement('span');
-          terms.textContent = d.terms.slice(0, 5).join(', ');
-          row.append(pos, terms);
-          dict.appendChild(row);
-        }
-        p.appendChild(dict);
+        for (const d of dictRows.slice(0, 4)) dict.appendChild(dictRow(ReadLexUI.shortPos(d.pos), d.terms.slice(0, 5).join(', '), false));
+        body.appendChild(dict);
       }
+      p.appendChild(body);
     }
 
     if (!data.offline && options.showDefinition !== false && data.definitions && data.definitions.length) {
       const def = document.createElement('div');
       def.className = 'rl-def';
+      def.lang = 'en';
       const d = data.definitions[0];
       def.textContent = `${d.partOfSpeech ? d.partOfSpeech + ' · ' : ''}${d.definition}`;
       p.appendChild(def);
     }
 
-    const footParts = [];
-    if (data.lookupCount > 1) footParts.push(`Đã tra ${data.lookupCount} lần`);
-    if (data.saved) footParts.push(`✓ Trong kho (${data.saved.exposureCount || 1} ngữ cảnh)`);
-    else if (data.lookupCount >= 3) footParts.push('Gặp nhiều rồi, lưu lại nhé?');
-    if (footParts.length) {
+    // Full-width save button with one line underneath: what saving does, or what we already know about this word.
+    const count = data.lookupCount || 0;
+    const what = data.isWord ? 'word' : 'phrase';
+    const kept = data.saved ? (data.saved.exposureCount || 1) : 0;
+    let hint = 'Saves it with the sentence you are reading.';
+    if (data.saved) hint = `Already saved (${kept} ${kept === 1 ? 'sentence' : 'sentences'}). Press to add this one.`;
+    else if (count >= 3) hint = `Looked up ${count} times already. Save this ${what} to review?`;
+    else if (count > 1) hint = `Looked up ${count} times. Saves it with this sentence.`;
+    if (options.onSave || data.saved || count > 1) {
+      const actions = document.createElement('div');
+      actions.className = 'rl-actions';
       const foot = document.createElement('div');
       foot.className = 'rl-foot';
-      footParts.forEach((t, i) => {
-        const s = document.createElement('span');
-        s.textContent = (i ? '· ' : '') + t;
-        if (t.startsWith('✓')) s.className = 'rl-ok';
-        foot.appendChild(s);
-      });
-      p.appendChild(foot);
+      foot.textContent = hint;
+      if (options.onSave) {
+        actions.appendChild(this.saveButton(data.saved, options.onSave, {
+          block: true,
+          label: data.isWord ? 'Save word' : 'Save phrase',
+          onSaved: () => { foot.textContent = 'Saved with the sentence you are reading.'; },
+        }));
+      }
+      actions.appendChild(foot);
+      p.appendChild(actions);
     }
 
     this.place(p, rect);
     this.visible = true;
   }
 
-  saveButton(saved, onSave) {
+  // Save control. Word popup: full-width yellow button. Sentence box: compact pill.
+  // Saved state: outlined "Saved" with a check (still clickable: it adds the current sentence as a new context).
+  saveButton(saved, onSave, { block = false, label = '', onSaved = null } = {}) {
     const save = document.createElement('button');
-    save.className = 'rl-save' + (saved ? ' rl-saved' : '');
-    save.textContent = saved ? '★ Đã lưu' : '☆ Lưu';
-    save.title = saved ? 'Đã có trong kho. Bấm để lưu thêm ngữ cảnh này.' : 'Lưu vào kho từ vựng (kèm câu này)';
+    save.type = 'button';
+    const render = (state) => {
+      const isSaved = state === 'saved';
+      save.className = `rl-save ${block ? 'rl-block' : 'rl-pill'}${isSaved ? ' rl-saved' : ''}`;
+      save.setAttribute('aria-pressed', String(isSaved));
+      save.title = isSaved ? 'Already in your vocabulary. Press to add this sentence.' : 'Save to your vocabulary with this sentence';
+      save.replaceChildren(
+        isSaved ? ReadLexUI.icon('check', block ? 18 : 16, 3) : ReadLexUI.icon('bookmark', block ? 18 : 16, 2.2),
+        document.createTextNode(isSaved ? 'Saved' : (label || 'Save word')),
+      );
+    };
+    render(saved ? 'saved' : 'idle');
     save.addEventListener('click', async (e) => {
       e.stopPropagation();
       save.disabled = true;
-      save.textContent = '…';
+      save.textContent = 'Saving…';
+      let result = null;
       try {
-        const result = await onSave();
-        save.classList.toggle('rl-saved', !!result || !!saved);
-        save.textContent = result || saved ? '★ Đã lưu' : '☆ Lưu';
+        result = await onSave();
       } finally {
         save.disabled = false;
+        render(result || saved ? 'saved' : 'idle');
       }
+      if (result && onSaved) onSaved(result);
     });
     return save;
   }
 
   // Sentence translation box (tudienjp-style). data: { translation, error, word? (LOOKUP result of the hovered word) }
+  // options: { pinned, showIpa, onSaveWord, shiftHint }
   showSentence(rect, data, options = {}) {
     this.ensure();
     this.hideSelectionButton();
     this.pinned = !!options.pinned;
-    const p = this.popup;
-    p.classList.add('rl-sent');
-    p.replaceChildren();
+    const p = this.resetPopup('sent', 'ReadLex sentence translation');
     if (data.error && !data.translation) {
       const err = document.createElement('div');
       err.className = 'rl-error';
-      err.textContent = `Không dịch được: ${data.error}`;
+      err.textContent = `Could not translate: ${data.error}`;
       p.appendChild(err);
     } else {
       const t = document.createElement('div');
@@ -360,6 +448,18 @@ class ReadLexUI {
       p.appendChild(t);
     }
     if (data.word) p.appendChild(this.wordLine(data.word, options));
+    if (options.shiftHint) {
+      const hint = document.createElement('div');
+      hint.className = 'rl-shift';
+      const kbd = document.createElement('kbd');
+      kbd.textContent = 'Shift';
+      const before = document.createElement('span');
+      before.textContent = 'Hold';
+      const after = document.createElement('span');
+      after.textContent = 'to look up single words';
+      hint.append(before, kbd, after);
+      p.appendChild(hint);
+    }
     this.place(p, rect);
     this.visible = true;
   }
@@ -367,32 +467,27 @@ class ReadLexUI {
   wordLine(word, options = {}) {
     const line = document.createElement('div');
     line.className = 'rl-sent-word';
+    const info = document.createElement('div');
+    info.className = 'rl-sent-info';
     const w = document.createElement('span');
     w.className = 'rl-word';
+    w.lang = word.ja ? 'ja' : 'en';
     const jaFirst = word.ja && word.ja.results && word.ja.results[0];
     w.textContent = jaFirst ? jaFirst.headword : (word.ja && word.ja.kanji ? word.ja.kanji.literal : word.text);
-    line.appendChild(w);
+    info.appendChild(w);
     if (jaFirst && jaFirst.reading) {
       const rd = document.createElement('span');
       rd.className = 'rl-reading';
+      rd.lang = 'ja';
       rd.textContent = `【${jaFirst.reading}】`;
-      line.appendChild(rd);
+      info.appendChild(rd);
     }
     if (options.showIpa !== false && word.ipa) {
       const ipa = document.createElement('span');
       ipa.className = 'rl-ipa';
       ipa.textContent = word.ipa;
-      line.appendChild(ipa);
+      info.appendChild(ipa);
     }
-    if (word.audio) {
-      const btn = document.createElement('button');
-      btn.className = 'rl-icon';
-      btn.title = 'Nghe phát âm';
-      btn.appendChild(ReadLexUI.icon('audio'));
-      btn.addEventListener('click', (e) => { e.stopPropagation(); this.play(word.audio); });
-      line.appendChild(btn);
-    }
-    if (options.onSaveWord) line.appendChild(this.saveButton(word.saved, options.onSaveWord));
     const first = word.offline && word.offline.lines && word.offline.lines[0];
     let meaning = first ? `${first.label ? first.label + ': ' : ''}${first.text}` : (word.translation || '');
     if (jaFirst) {
@@ -406,8 +501,11 @@ class ReadLexUI {
       const m = document.createElement('span');
       m.className = 'rl-meaning';
       m.textContent = meaning;
-      line.appendChild(m);
+      info.appendChild(m);
     }
+    line.appendChild(info);
+    if (word.audio) line.appendChild(this.audioButton(word.audio));
+    if (options.onSaveWord) line.appendChild(this.saveButton(word.saved, options.onSaveWord));
     return line;
   }
 
@@ -418,7 +516,7 @@ class ReadLexUI {
     const line = word ? this.wordLine(word, options) : null;
     if (old && line) old.replaceWith(line);
     else if (old) old.remove();
-    else if (line) this.popup.appendChild(line);
+    else if (line) this.popup.insertBefore(line, this.popup.querySelector('.rl-shift'));
     if (this.lastRect) this.place(this.popup, this.lastRect);
   }
 
@@ -427,9 +525,9 @@ class ReadLexUI {
     const results = ja.results || [];
     if (data.ja.matched && results[0] && data.ja.matched !== results[0].headword && data.ja.matched !== results[0].reading) {
       const base = document.createElement('div');
-      base.className = 'rl-base';
-      base.textContent = `${data.ja.matched} → ${results[0].headword}`;
-      p.appendChild(base);
+      base.className = 'rl-sub rl-base';
+      base.textContent = `base form of “${data.ja.matched}”`;
+      head.appendChild(base);
     }
     if (results[0] && results[0].trail.length) {
       const trail = document.createElement('div');
@@ -439,7 +537,7 @@ class ReadLexUI {
         b.textContent = t;
         trail.appendChild(b);
       }
-      p.appendChild(trail);
+      head.appendChild(trail);
     }
     results.slice(0, 3).forEach((r, i) => {
       const box = document.createElement('div');
@@ -447,6 +545,7 @@ class ReadLexUI {
       if (i > 0) {
         const hw = document.createElement('div');
         hw.className = 'rl-hw';
+        hw.lang = 'ja';
         hw.textContent = r.reading ? `${r.headword}【${r.reading}】` : r.headword;
         box.appendChild(hw);
       }
@@ -474,13 +573,14 @@ class ReadLexUI {
       const box = document.createElement('div');
       box.className = 'rl-kanji';
       const b = document.createElement('b');
+      b.lang = 'ja';
       b.textContent = k.literal;
       box.appendChild(b);
       const parts = [];
       if (k.meanings.length) parts.push(k.meanings.slice(0, 4).join(', '));
       if (k.on.length) parts.push(`on: ${k.on.join(' ')}`);
       if (k.kun.length) parts.push(`kun: ${k.kun.slice(0, 3).join(' ')}`);
-      const meta = [k.jlpt ? `JLPT N${k.jlpt}` : '', k.grade ? `lớp ${k.grade}` : '', k.strokes ? `${k.strokes} nét` : ''].filter(Boolean).join(' · ');
+      const meta = [k.jlpt ? `JLPT N${k.jlpt}` : '', k.grade ? `grade ${k.grade}` : '', k.strokes ? `${k.strokes} ${k.strokes === 1 ? 'stroke' : 'strokes'}` : ''].filter(Boolean).join(' · ');
       if (meta) parts.push(meta);
       box.appendChild(document.createTextNode(parts.join(' · ')));
       p.appendChild(box);
@@ -533,8 +633,8 @@ class ReadLexUI {
     const vh = window.innerHeight;
     let left = rect.right + 6;
     let top = rect.bottom + 6;
-    if (left + 34 > vw) left = vw - 40;
-    if (top + 34 > vh) top = rect.top - 36;
+    if (left + 44 > vw) left = vw - 48;   // the button is 40px wide
+    if (top + 44 > vh) top = rect.top - 46;
     btn.style.left = `${Math.round(Math.max(4, left))}px`;
     btn.style.top = `${Math.round(Math.max(4, top))}px`;
   }
@@ -543,15 +643,19 @@ class ReadLexUI {
     if (this.button) this.button.hidden = true;
   }
 
-  showToast(text, { actionLabel = '', onAction = null, duration = 4000 } = {}) {
+  // kind: 'ok' adds the yellow check (used for "saved" confirmations).
+  showToast(text, { actionLabel = '', onAction = null, duration = 4000, kind = '' } = {}) {
     this.ensure();
     clearTimeout(this.toastTimer);
     this.toast.replaceChildren();
+    if (kind === 'ok') this.toast.appendChild(ReadLexUI.icon('check', 18, 3));
     const span = document.createElement('span');
     span.textContent = text;
     this.toast.appendChild(span);
+    this.toast.classList.toggle('rl-has-action', !!(actionLabel && onAction));
     if (actionLabel && onAction) {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.textContent = actionLabel;
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -574,7 +678,7 @@ class ReadLexUI {
       if (!document.getElementById('readlex-highlight-style')) {
         const style = document.createElement('style');
         style.id = 'readlex-highlight-style';
-        style.textContent = '::highlight(readlex-word) { background-color: rgba(79, 70, 229, .22); }';
+        style.textContent = '::highlight(readlex-word) { background-color: #FFE45C; color: #17202B; }';
         (document.head || document.documentElement).appendChild(style);
       }
       CSS.highlights.set('readlex-word', new Highlight(range));
